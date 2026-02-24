@@ -192,8 +192,8 @@ export function StatusChip({
             : 'bg-[var(--muted-2)]';
 
   return (
-    <span title={title} className={cx('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold shadow-sm', c)}>
-      <span className={cx('h-2 w-2 rounded-full', dot)} aria-hidden="true" />
+    <span title={title} className={cx('inline-flex items-center gap-2 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold shadow-sm sm:px-3 sm:py-1 sm:text-xs', c)}>
+      <span className={cx('h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2', dot)} aria-hidden="true" />
       <span className="truncate">{children}</span>
     </span>
   );
@@ -302,7 +302,7 @@ export function RailItem({
     <Link
       href={href}
       className={cx(
-        'group relative flex flex-col items-center justify-center gap-1 rounded-[22px] border px-3 py-3 text-center transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+        'group relative flex flex-col items-center justify-center gap-1 rounded-[22px] border px-2.5 py-2.5 text-center transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] sm:px-3 sm:py-3',
         active
           ? 'border-[color-mix(in_oklab,var(--primary)_40%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_40%,var(--surface-solid)),color-mix(in_oklab,var(--primary-3)_28%,var(--surface-solid)))] text-[var(--fg)] shadow-[var(--shadow)]'
           : 'border-[color-mix(in_oklab,var(--border)_75%,transparent)] bg-[color-mix(in_oklab,var(--surface-solid)_40%,transparent)] text-[var(--muted)] shadow-sm hover:-translate-y-[1px] hover:bg-[color-mix(in_oklab,var(--surface-solid)_56%,transparent)]'
@@ -311,7 +311,7 @@ export function RailItem({
       title={label}
     >
       <span className={cx('h-5 w-5 transition', active ? '' : 'group-hover:scale-[1.06]')}>{icon}</span>
-      <span className={cx('text-[11px] font-semibold tracking-[-0.01em]', active ? 'text-[var(--fg)]' : 'text-[var(--muted)]')}>
+      <span className={cx('text-[10px] font-semibold tracking-[-0.01em] sm:text-[11px]', active ? 'text-[var(--fg)]' : 'text-[var(--muted)]')}>
         {label}
       </span>
       <span

@@ -316,7 +316,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         {/* Full-bleed flagship backdrop (FX mode only) */}
         {fxEnabled ? <div className="jc-vortex" aria-hidden="true" /> : null}
 
-        <div className="relative mx-auto max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
+        <div className="relative mx-auto max-w-[1440px] px-3 pt-4 pb-28 sm:px-4 sm:pt-5 md:px-6 md:pt-6 lg:pb-6">
           {/* HUD bar */}
           <header className="jc-hud">
             <div className="jc-hud__left">
@@ -347,9 +347,9 @@ export default function Shell({ children }: { children: ReactNode }) {
           </header>
 
           {/* Shell grid: Dock + Stage */}
-          <div className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="mt-4 grid gap-4 lg:mt-5 lg:gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
             {/* Dock */}
-            <aside className="jc-dock" aria-label="Primary">
+            <aside className="jc-dock hidden lg:block" aria-label="Primary">
               <div className="jc-dock__section">
                 <div className="jc-dock__label">LIVE</div>
                 <div className="jc-dock__grid">
