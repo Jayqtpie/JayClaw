@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip, TextInput } from '@/components/ui';
 
 type FsHit = { id: string; file: string; line: number; text: string };
@@ -12,7 +11,6 @@ function cx(...parts: Array<string | false | null | undefined>) {
 }
 
 export default function MemoryPage() {
-  const searchParams = useSearchParams();
   const seededOnce = useRef(false);
 
   const [q, setQ] = useState('');
@@ -33,7 +31,9 @@ export default function MemoryPage() {
 
   useEffect(() => {
     if (seededOnce.current) return;
-    const seeded = (searchParams.get('q') || '').trim();
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    const seeded = (sp.get('q') || '').trim();
     if (!seeded) return;
     seededOnce.current = true;
     setQ(seeded);
@@ -42,7 +42,7 @@ export default function MemoryPage() {
       void searchSeeded(seeded);
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, []);
 
   async function searchSeeded(seed: string) {
     const query = seed.trim();
