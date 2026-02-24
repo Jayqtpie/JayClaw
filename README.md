@@ -56,6 +56,15 @@ Open: <http://localhost:3000>
    - `OPENCLAW_GATEWAY_URL`
    - `OPENCLAW_GATEWAY_TOKEN`
    - `APP_ACCESS_KEY`
+
+   Chat (optional but recommended):
+   - `CHAT_SESSION_KEY` (default: `agent:main:main`) – which OpenClaw session the dashboard sends chat messages to via `sessions_send` + `sessions_history`
+   - `CHAT_POLL_ATTEMPTS` (default: `8`) – bounded retries while waiting for the assistant reply
+   - `CHAT_POLL_DELAY_MS` (default: `350`) – delay between history polls
+
+   Legacy / fallback chat routing (optional):
+   - `CHAT_TOOL_NAMESPACE` / `CHAT_TOOL_ACTION` – used only if `sessions_send` / `sessions_history` are not available on your gateway deployment
+
    - (optional) `OPENCLAW_MEMORY_DIR` (only relevant if you deploy with memory files available)
 4. Deploy.
 

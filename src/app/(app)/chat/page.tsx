@@ -215,9 +215,9 @@ export default function ChatPage() {
             <div className="mt-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-xs text-[var(--muted)]">
               <div className="font-semibold text-[var(--fg)]">Backend notes</div>
               <div className="mt-1">
-                Replies come from the configured gateway tool.
-                If you get <span className="font-mono">chat_no_reply</span>, set <span className="font-mono">CHAT_TOOL_NAMESPACE</span> /{' '}
-                <span className="font-mono">CHAT_TOOL_ACTION</span>.
+                Replies come from the OpenClaw session chat pipeline (<span className="font-mono">sessions_send</span> + <span className="font-mono">sessions_history</span>).
+                If you get <span className="font-mono">chat_no_reply</span>, verify <span className="font-mono">CHAT_SESSION_KEY</span>. If your gateway deployment
+                does not expose the sessions tools, set <span className="font-mono">CHAT_TOOL_NAMESPACE</span> / <span className="font-mono">CHAT_TOOL_ACTION</span>.
               </div>
             </div>
           </section>
