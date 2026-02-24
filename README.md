@@ -12,6 +12,12 @@ A Vercel-ready Next.js (App Router, TypeScript) control panel for securely opera
 - A simple app gate protects all pages + API routes using:
   - `APP_ACCESS_KEY`
   - An httpOnly cookie session (`occ_session`) validated server-side
+- **Safe Mode (read-only):**
+  - Toggle in the header.
+  - Stored as a signed httpOnly cookie (`occ_safe_mode`).
+  - Mutating API routes call `requireNotSafeMode()` and return `409 safe_mode_enabled` when blocked.
+- **Audit trail:**
+  - Mutating API routes append JSONL entries to `data/audit.jsonl` (ignored by git).
 
 ## Pages
 
@@ -20,6 +26,9 @@ A Vercel-ready Next.js (App Router, TypeScript) control panel for securely opera
 - `/ops` – gateway status + restart button
 - `/scheduler` – create/list/run reminders (MVP in-memory store)
 - `/memory` – memory search + snippet view (gateway-first; filesystem fallback)
+- `/health` – **Health Wall** (gateway status, token check, SSL expiry, recent failures)
+- `/audit` – **Audit Trail** panel (local JSONL store)
+- `/quick` – **Quick Actions** templates/macros
 
 ## Local development
 

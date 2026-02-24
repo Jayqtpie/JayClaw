@@ -2,14 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, CodeBlock, EmptyState, StatusChip, TextArea } from '@/components/ui';
+import { useSafeMode } from '@/components/SafeModeClient';
 
 export default function ConsolePage() {
+  const { enabled: safeMode } = useSafeMode();
+
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canSend = useMemo(() => message.trim().length > 0 && !busy, [message, busy]);
+  const canSend = useMemo(() => message.trim().length > 0 && !busy && !safeMode, [message, busy, safeMode]);
 
   async function send() {
     const text = message.trim();
@@ -42,8 +45,9 @@ export default function ConsolePage() {
       <Card
         title="Console"
         subtitle="Send a message to the main OpenClaw session (server-side gateway call)."
-        right={<StatusChip tone={busy ? 'warn' : 'info'}>{busy ? 'Sending…' : 'Ready'}</StatusChip>}
+        right={<StatusChip tone={busy ? 'warn' : safeMode ? 'warn' : 'info'}>{busy ? 'Sending…' : safeMode ? 'Safe Mode' : 'Ready'}</StatusChip>}
       >
+        {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; sending is blocked server-side." /> : null}
         <div className="space-y-3">
           <TextArea
             value={message}

@@ -2,10 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip, TextArea } from '@/components/ui';
+import { useSafeMode } from '@/components/SafeModeClient';
 
 type SubagentList = any;
 
 export default function SubagentsPage() {
+  const { enabled: safeMode } = useSafeMode();
+
   const [list, setList] = useState<SubagentList | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,10 +92,11 @@ export default function SubagentsPage() {
       </Card>
 
       <Card title="Spawn / Steer" subtitle="POSTs to /api/subagents (server-side).">
+        {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; spawning/steering is blocked server-side." /> : null}
         <div className="space-y-3">
           <TextArea value={spawnPrompt} onChange={setSpawnPrompt} rows={6} placeholder="Describe the subagent task…" />
           <div className="flex justify-end">
-            <Button onClick={spawn} disabled={busy || !spawnPrompt.trim()}>
+            <Button onClick={spawn} disabled={busy || safeMode || !spawnPrompt.trim()}>
               {busy ? 'Working…' : 'Send'}
             </Button>
           </div>

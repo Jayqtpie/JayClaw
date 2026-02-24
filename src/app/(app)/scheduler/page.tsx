@@ -110,6 +110,7 @@ export default function SchedulerPage() {
       setError(e?.message || 'Run failed');
     } finally {
       setBusy(false);
+      setRunId(null);
     }
   }
 
@@ -132,6 +133,7 @@ export default function SchedulerPage() {
           </div>
         }
       >
+        {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; create/toggle/run are blocked server-side." /> : null}
         {error ? <Alert variant="error" title="Scheduler error" message={error} /> : <Alert variant="info" message="Run now triggers a gateway message. Cron is stored as a string in MVP." />}
       </Card>
 
@@ -209,6 +211,16 @@ export default function SchedulerPage() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={!!runId}
+        title="Run reminder now?"
+        description={runId ? `This will immediately execute the reminder (id: ${runId.slice(0, 8)}…).` : undefined}
+        confirmText={busy ? 'Running…' : 'Run now'}
+        danger
+        onClose={() => setRunId(null)}
+        onConfirm={() => (runId ? runNow(runId) : undefined)}
+      />
     </div>
   );
 }
