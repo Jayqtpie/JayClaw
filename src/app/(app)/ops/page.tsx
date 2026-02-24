@@ -2,11 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip } from '@/components/ui';
+import { useSafeMode } from '@/components/SafeModeClient';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function OpsPage() {
+  const { enabled: safeMode } = useSafeMode();
+
   const [status, setStatus] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restartOpen, setRestartOpen] = useState(false);
 
   const runtime = useMemo(() => {
     const r = status?.runtime;
@@ -31,18 +36,18 @@ export default function OpsPage() {
   }
 
   async function restart() {
-    if (!confirm('Restart OpenClaw Gateway? This may interrupt in-flight tasks.')) return;
     setBusy(true);
     setError(null);
     try {
       const res = await fetch('/api/ops/restart', { method: 'POST' });
       const j = (await res.json().catch(() => null)) as any;
-      if (!res.ok) throw new Error(j?.error || 'Restart failed');
+      if (!res.ok) throw new Error(j?.message || j?.error || 'Restart failed');
       await load();
     } catch (e: any) {
       setError(e?.message || 'Restart failed');
     } finally {
       setBusy(false);
+      setRestartOpen(false);
     }
   }
 
@@ -64,12 +69,13 @@ export default function OpsPage() {
             <Button variant="outline" onClick={load} disabled={busy}>
               Refresh
             </Button>
-            <Button variant="danger" onClick={restart} disabled={busy}>
+            <Button variant="danger" onClick={() => setRestartOpen(true)} disabled={busy || safeMode}>
               Restart
             </Button>
           </div>
         }
       >
+        {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; restart is blocked server-side." /> : null}
         {error ? (
           <Alert variant="error" title="Ops status unavailable" message={error} right={<Button variant="outline" onClick={load}>Retry</Button>} />
         ) : status ? (
@@ -95,6 +101,25 @@ export default function OpsPage() {
           <CodeBlock label="STATUS">{JSON.stringify(status, null, 2)}</CodeBlock>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={restartOpen}
+        title="Restart gateway?"
+        description="High-impact operation. Many deployments do not expose restart via API (you may see 501)."
+        confirmText={busy ? 'Restarting…' : 'Restart'}
+        danger
+        onClose={() => setRestartOpen(false)}
+        onConfirm={restart}
+      />
+      <ConfirmDialog
+        open={restartOpen}
+        title="Restart OpenClaw Gateway?"
+        description="This may interrupt in-flight tasks."
+        confirmText={busy ? 'Restarting…' : 'Restart'}
+        danger
+        onConfirm={restart}
+        onClose={() => setRestartOpen(false)}
+      />
     </div>
   );
 }

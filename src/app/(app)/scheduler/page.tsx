@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, EmptyState, Skeleton, StatusChip, TextArea, TextInput } from '@/components/ui';
+import { useSafeMode } from '@/components/SafeModeClient';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 type Reminder = {
   id: string;
@@ -21,17 +23,20 @@ function formatDate(ts: number) {
 }
 
 export default function SchedulerPage() {
+  const { enabled: safeMode } = useSafeMode();
+
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [cron, setCron] = useState('0 9 * * *');
   const [message, setMessage] = useState('');
 
   const canCreate = useMemo(
-    () => !busy && !!title.trim() && !!message.trim() && !!cron.trim(),
-    [busy, title, message, cron]
+    () => !busy && !safeMode && !!title.trim() && !!message.trim() && !!cron.trim(),
+    [busy, safeMode, title, message, cron]
   );
 
   async function load() {
@@ -191,10 +196,10 @@ export default function SchedulerPage() {
                     <div className="mt-3 whitespace-pre-wrap text-sm text-[var(--fg)]">{r.message}</div>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => toggle(r.id, !r.enabled)} disabled={busy}>
+                    <Button variant="outline" onClick={() => toggle(r.id, !r.enabled)} disabled={busy || safeMode}>
                       {r.enabled ? 'Disable' : 'Enable'}
                     </Button>
-                    <Button onClick={() => runNow(r.id)} disabled={busy || !r.enabled}>
+                    <Button onClick={() => setRunId(r.id)} disabled={busy || safeMode || !r.enabled}>
                       Run now
                     </Button>
                   </div>
