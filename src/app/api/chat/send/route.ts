@@ -6,28 +6,89 @@ import { appendMessage, readThread, updateMessage } from '@/lib/chatStore';
 
 function extractAssistantText(result: any): string | null {
   if (!result) return null;
-  if (typeof result === 'string') return result;
+  if (typeof result === 'string') return result.trim() || null;
 
-  const candidates = [
+  // Common direct envelopes.
+  const candidates: unknown[] = [
     result?.reply,
     result?.message,
     result?.text,
     result?.content,
+    result?.assistant,
+    result?.assistantText,
+    result?.output,
     result?.result?.reply,
     result?.result?.message,
     result?.result?.text,
     result?.result?.content,
+    result?.result?.assistant,
+    result?.result?.output,
   ];
   for (const c of candidates) {
     if (typeof c === 'string' && c.trim()) return c.trim();
+    if (c && typeof c === 'object') {
+      const t = (c as any)?.text ?? (c as any)?.content ?? (c as any)?.message;
+      if (typeof t === 'string' && t.trim()) return t.trim();
+    }
   }
 
-  const arr = result?.messages ?? result?.result?.messages;
-  if (Array.isArray(arr)) {
-    const last = [...arr]
+  // Common transcript arrays: messages/history/items/transcript/events.
+  const arrays: unknown[] = [
+    result?.messages,
+    result?.result?.messages,
+    result?.history,
+    result?.result?.history,
+    result?.items,
+    result?.transcript,
+    result?.result?.transcript,
+    result?.events,
+    result?.result?.events,
+  ];
+  for (const arr of arrays) {
+    if (!Array.isArray(arr)) continue;
+
+    // Prefer explicit assistant role/type.
+    const lastAssistant = [...arr]
       .reverse()
-      .find((m) => (m?.role === 'assistant' || m?.type === 'assistant') && typeof m?.text === 'string');
-    if (last?.text?.trim()) return last.text.trim();
+      .find(
+        (m) =>
+          (m as any)?.role === 'assistant' ||
+          (m as any)?.type === 'assistant' ||
+          (m as any)?.kind === 'assistant'
+      );
+
+    const pick = lastAssistant ?? [...arr].reverse().find((m) => typeof (m as any)?.text === 'string');
+    if (pick) {
+      const t =
+        (typeof (pick as any)?.text === 'string' ? (pick as any).text : null) ??
+        (typeof (pick as any)?.content === 'string' ? (pick as any).content : null) ??
+        (typeof (pick as any)?.message === 'string' ? (pick as any).message : null) ??
+        (typeof (pick as any)?.data?.text === 'string' ? (pick as any).data.text : null) ??
+        (typeof (pick as any)?.data?.content === 'string' ? (pick as any).data.content : null);
+      if (typeof t === 'string' && t.trim()) return t.trim();
+    }
+  }
+
+  // Last resort: walk a few layers deep looking for the most plausible assistant text.
+  const seen = new Set<any>();
+  const stack: Array<{ v: any; depth: number }> = [{ v: result, depth: 0 }];
+  while (stack.length) {
+    const { v, depth } = stack.pop()!;
+    if (!v || typeof v !== 'object') continue;
+    if (seen.has(v)) continue;
+    seen.add(v);
+    if (depth > 4) continue;
+
+    if (Array.isArray(v)) {
+      for (let i = v.length - 1; i >= 0; i--) stack.push({ v: v[i], depth: depth + 1 });
+      continue;
+    }
+
+    const role = (v as any)?.role ?? (v as any)?.type ?? (v as any)?.kind;
+    const text = (v as any)?.text ?? (v as any)?.content ?? (v as any)?.message;
+    if (role === 'assistant' && typeof text === 'string' && text.trim()) return text.trim();
+
+    for (const key of Object.keys(v)) stack.push({ v: (v as any)[key], depth: depth + 1 });
   }
 
   return null;
@@ -99,6 +160,7 @@ type AttemptLog = {
     | 'sessions_send(label)'
     | 'sessions_history(sessionKey)'
     | 'sessions_history(label)'
+    | 'sessions_spawn(run.message)'
     | 'invokeTool(configured)';
   ok: boolean;
   code?: string;
@@ -121,11 +183,12 @@ function isFatalGatewayErr(e: any) {
   return status === 401 || status === 403 || code === 'gateway_unauthorized' || code === 'gateway_unreachable';
 }
 
-function shouldFallbackToConfiguredTool(err: any) {
+function shouldFallbackFromSessions(err: any) {
   const status = err?.status as number | undefined;
   const code = err?.code as string | undefined;
-  // If the sessions tools simply don't exist on this deployment, fall back.
-  return status === 404 || code === 'gateway_not_found';
+  // If the sessions tools simply don't exist or are not exposed on this deployment, fall back.
+  // (Common cases: 404 Not Found, 405 Method Not Allowed)
+  return status === 404 || status === 405 || code === 'gateway_not_found';
 }
 
 async function sessionsSendWithParams(params: Record<string, unknown>) {
@@ -160,6 +223,31 @@ async function sessionsHistoryWithParams(params: Record<string, unknown>) {
     }
   }
   throw lastErr || new Error('sessions_history_failed');
+}
+
+async function sessionsSpawnRunMessage(message: string) {
+  // sessions_spawn (mode=run) is our most robust fallback when sessions_send/history aren't exposed.
+  // Gateway deployments differ slightly in schema; try a few shapes.
+  const base = { channel: 'dashboard', thread: 'jayclaw', message };
+  const attempts: Record<string, unknown>[] = [
+    { mode: 'run', task: 'message', ...base },
+    { mode: 'run', task: { type: 'message', ...base } },
+    { mode: 'run', task: { kind: 'message', ...base } },
+    { mode: 'run', task: { action: 'message', ...base } },
+    { mode: 'run', input: { type: 'message', ...base } },
+  ];
+
+  let lastErr: any = null;
+  for (const p of attempts) {
+    try {
+      return await invokeTool<any>({ namespace: 'sessions_spawn', params: p });
+    } catch (e: any) {
+      lastErr = e;
+      if (isFatalGatewayErr(e)) throw e;
+    }
+  }
+
+  throw lastErr || new Error('sessions_spawn_failed');
 }
 
 export async function POST(req: Request) {
@@ -199,7 +287,7 @@ export async function POST(req: Request) {
 
     let result: any = null;
     let assistantText: string | null = null;
-    let pipeline: 'sessions' | 'sessions_label' | 'tool' = 'sessions';
+    let pipeline: 'sessions' | 'sessions_label' | 'sessions_spawn' | 'tool' = 'sessions';
 
     const pollAttempts = Math.max(1, Math.min(12, Number(process.env.CHAT_POLL_ATTEMPTS || '8')));
     const pollDelayMs = Math.max(150, Math.min(1500, Number(process.env.CHAT_POLL_DELAY_MS || '350')));
@@ -236,7 +324,7 @@ export async function POST(req: Request) {
     }
 
     // ---- 2) Fallback A: sessions_* using label (when key routing fails or key is unknown) ----
-    if (!assistantText && !isFatalGatewayErr(lastSessionsErr) && sessionLabel && !shouldFallbackToConfiguredTool(lastSessionsErr)) {
+    if (!assistantText && !isFatalGatewayErr(lastSessionsErr) && sessionLabel && !shouldFallbackFromSessions(lastSessionsErr)) {
       pipeline = 'sessions_label';
       try {
         result = await sessionsSendWithParams({ label: sessionLabel, message });
@@ -272,34 +360,64 @@ export async function POST(req: Request) {
       }
     }
 
-    // ---- 3) Fallback B: configurable tool invoke path (opt-in via env) ----
-    // We only attempt this if sessions tools are missing OR sessions routing failed.
+    // ---- 3) Fallback B: sessions_spawn(mode=run, task=message) OR configurable tool invoke ----
     if (!assistantText) {
-      pipeline = 'tool';
-
-      // If the failure is clearly auth/network, stop here (configured tool uses same gateway).
+      // If the failure is clearly auth/network, stop here (fallbacks use the same gateway).
       if (isFatalGatewayErr(lastSessionsErr)) throw lastSessionsErr;
 
-      // If sessions tooling exists but the session routing failed, we still try the configured tool.
-      try {
-        result = await invokeTool<any>({
-          namespace: configuredNamespace,
-          action: configuredAction,
-          params: {
-            message,
-            channel: 'dashboard',
-            thread: 'jayclaw',
-            returnTranscript: true,
-          },
-        });
-        attempts.push({ path: 'invokeTool(configured)', ok: true });
-      } catch (e: any) {
-        attempts.push({ path: 'invokeTool(configured)', ok: false, ...errSummary(e) });
-        // Preserve the most informative error.
-        throw e;
+      const fallbackModeRaw = (process.env.CHAT_FALLBACK_MODE || 'sessions_spawn').trim().toLowerCase();
+      const fallbackMode = fallbackModeRaw === 'tool_invoke' ? 'tool_invoke' : 'sessions_spawn';
+
+      // If sessions tooling isn't exposed (404/405), prefer sessions_spawn by default.
+      const sessionsUnavailable = shouldFallbackFromSessions(lastSessionsErr);
+
+      const trySessionsSpawnFirst = sessionsUnavailable ? fallbackMode !== 'tool_invoke' : fallbackMode === 'sessions_spawn';
+
+      if (trySessionsSpawnFirst) {
+        pipeline = 'sessions_spawn';
+        try {
+          result = await sessionsSpawnRunMessage(message);
+          attempts.push({ path: 'sessions_spawn(run.message)', ok: true });
+          assistantText = extractAssistantText(result);
+        } catch (e: any) {
+          attempts.push({ path: 'sessions_spawn(run.message)', ok: false, ...errSummary(e) });
+          // Keep going to tool fallback if configured.
+        }
       }
 
-      assistantText = extractAssistantText(result);
+      if (!assistantText) {
+        pipeline = 'tool';
+        try {
+          result = await invokeTool<any>({
+            namespace: configuredNamespace,
+            action: configuredAction,
+            params: {
+              message,
+              channel: 'dashboard',
+              thread: 'jayclaw',
+              returnTranscript: true,
+            },
+          });
+          attempts.push({ path: 'invokeTool(configured)', ok: true });
+          assistantText = extractAssistantText(result);
+        } catch (e: any) {
+          attempts.push({ path: 'invokeTool(configured)', ok: false, ...errSummary(e) });
+          throw e;
+        }
+      }
+
+      // If user explicitly requested tool_invoke first, optionally try sessions_spawn second.
+      if (!assistantText && !trySessionsSpawnFirst && fallbackMode === 'tool_invoke') {
+        pipeline = 'sessions_spawn';
+        try {
+          result = await sessionsSpawnRunMessage(message);
+          attempts.push({ path: 'sessions_spawn(run.message)', ok: true, hint: 'Second-chance fallback after tool_invoke.' });
+          assistantText = extractAssistantText(result);
+        } catch (e: any) {
+          attempts.push({ path: 'sessions_spawn(run.message)', ok: false, ...errSummary(e), hint: 'Second-chance fallback after tool_invoke.' });
+        }
+      }
+
       if (!assistantText) {
         throw Object.assign(new Error('chat_no_reply'), {
           status: 502,
@@ -307,8 +425,10 @@ export async function POST(req: Request) {
           details: {
             hint:
               'Gateway returned no assistant text. Preferred fix: ensure sessions_send and sessions_history are available. ' +
-              'Fallback fix: configure CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION to a tool that returns a reply, or update extractAssistantText() to match your gateway response shape.',
-            tool: { namespace: configuredNamespace, action: configuredAction },
+              'Fallback fix: use CHAT_FALLBACK_MODE=sessions_spawn (default) or configure CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION for a tool that returns a reply, ' +
+              'or update extractAssistantText() to match your gateway response shape.',
+            configuredTool: { namespace: configuredNamespace, action: configuredAction },
+            fallbackMode,
           },
         });
       }
@@ -356,7 +476,7 @@ export async function POST(req: Request) {
       hints: [
         'If you see gateway_unreachable: verify OPENCLAW_GATEWAY_URL is reachable from the server and points to the HTTP(S) endpoint (not ws/wss).',
         'If you see gateway_unauthorized: verify OPENCLAW_GATEWAY_TOKEN.',
-        'If sessions_* are missing (404): ensure your gateway exposes sessions_send and sessions_history, or set CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION.',
+        'If sessions_* are missing (404/405): your gateway likely does not expose sessions_send/sessions_history. Use CHAT_FALLBACK_MODE=sessions_spawn (default) or set CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION.',
         'If chat_no_reply: verify the target session is correct (CHAT_SESSION_KEY or CHAT_SESSION_LABEL) and that an assistant is actively producing replies.',
       ],
       config: {

@@ -63,7 +63,8 @@ Open: <http://localhost:3000>
    - `CHAT_POLL_DELAY_MS` (default: `350`) – delay between history polls
 
    Legacy / fallback chat routing (optional):
-   - `CHAT_TOOL_NAMESPACE` / `CHAT_TOOL_ACTION` – used only if `sessions_send` / `sessions_history` are not available on your gateway deployment
+   - `CHAT_FALLBACK_MODE` (default: `sessions_spawn`) – fallback strategy when `sessions_send` / `sessions_history` are not available (404/405). Options: `sessions_spawn` | `tool_invoke`.
+   - `CHAT_TOOL_NAMESPACE` / `CHAT_TOOL_ACTION` – used when `CHAT_FALLBACK_MODE=tool_invoke`, or as a secondary fallback if `sessions_spawn` returns no assistant text.
 
    - (optional) `OPENCLAW_MEMORY_DIR` (only relevant if you deploy with memory files available)
 4. Deploy.
