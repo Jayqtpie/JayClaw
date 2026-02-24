@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { invokeTool } from '@/lib/openclaw';
 
 export async function GET() {
-  const result = await invokeTool<any>({
-    namespace: 'subagents',
-    action: 'list',
-    params: { recentMinutes: 120 },
-  });
-  return NextResponse.json({ ok: true, result });
+  try {
+    const result = await invokeTool<any>({
+      namespace: 'subagents',
+      action: 'list',
+      params: { recentMinutes: 120 },
+    });
+    return NextResponse.json({ ok: true, result });
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || 'Failed to load subagents', details: e?.details },
+      { status: e?.status || 500 }
+    );
+  }
 }
 
 export async function POST(req: Request) {

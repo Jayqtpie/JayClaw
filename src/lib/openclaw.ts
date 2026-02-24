@@ -58,15 +58,23 @@ export async function gatewayFetch<T>(path: string, init?: RequestInit): Promise
 }
 
 export type ToolInvokeRequest = {
-  namespace: string; // e.g. "message", "subagents", "gateway"
-  action: string; // e.g. "send", "list", "status"
+  namespace: string; // tool name, e.g. "subagents", "session_status", "cron"
+  action?: string; // optional action merged into params when needed
   params?: Record<string, unknown>;
 };
 
-// Default assumption: Gateway exposes a single /invoke endpoint.
+// OpenClaw gateway tool invocation endpoint.
 export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
-  return gatewayFetch<T>('/invoke', {
+  const params = {
+    ...(req.params ?? {}),
+    ...(req.action ? { action: req.action } : {}),
+  };
+
+  return gatewayFetch<T>('/tools/invoke', {
     method: 'POST',
-    body: JSON.stringify(req),
+    body: JSON.stringify({
+      tool: req.namespace,
+      params,
+    }),
   });
 }
