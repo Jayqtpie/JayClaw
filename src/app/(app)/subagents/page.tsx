@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip, TextArea } from '@/components/ui';
+import { Alert, Button, Card, EmptyState, Skeleton, StatusChip, TextArea } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
+import { RawJsonPanel } from '@/components/RawJsonPanel';
 
 type SubagentList = any;
 
@@ -103,7 +104,7 @@ export default function SubagentsPage() {
         </div>
       </Card>
 
-      <Card title="Raw list" subtitle="Gateway response.">
+      <Card title="Raw list" subtitle="Gateway response (collapsed by default).">
         {busy && !list ? (
           <div className="space-y-3">
             <Skeleton className="h-4 w-1/3" />
@@ -112,7 +113,7 @@ export default function SubagentsPage() {
         ) : !list ? (
           <EmptyState title="No data" description="Refresh to fetch the current subagent list." action={<Button variant="outline" onClick={refresh}>Refresh</Button>} />
         ) : (
-          <CodeBlock label="SUBAGENTS">{JSON.stringify(list, null, 2)}</CodeBlock>
+          <RawJsonPanel data={list} label="SUBAGENTS" filename="subagents.json" />
         )}
       </Card>
     </div>

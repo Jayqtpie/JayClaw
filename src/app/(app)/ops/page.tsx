@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip } from '@/components/ui';
+import { Alert, Button, Card, EmptyState, Skeleton, StatusChip } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { RawJsonPanel } from '@/components/RawJsonPanel';
 
 export default function OpsPage() {
   const { enabled: safeMode } = useSafeMode();
@@ -89,7 +90,7 @@ export default function OpsPage() {
         )}
       </Card>
 
-      <Card title="Raw status" subtitle="Gateway response.">
+      <Card title="Raw status" subtitle="Gateway response (collapsed by default).">
         {busy && !status ? (
           <div className="space-y-3">
             <Skeleton className="h-4 w-1/2" />
@@ -98,7 +99,7 @@ export default function OpsPage() {
         ) : !status ? (
           <EmptyState title="No data" description="Refresh to fetch current gateway session_status." action={<Button variant="outline" onClick={load}>Refresh</Button>} />
         ) : (
-          <CodeBlock label="STATUS">{JSON.stringify(status, null, 2)}</CodeBlock>
+          <RawJsonPanel data={status} label="STATUS" filename="ops-status.json" />
         )}
       </Card>
 

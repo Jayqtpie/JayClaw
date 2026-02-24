@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Alert, Button, Card, CodeBlock, EmptyState, StatusChip, TextArea } from '@/components/ui';
+import { Alert, Button, Card, EmptyState, StatusChip, TextArea } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
+import { RawJsonPanel } from '@/components/RawJsonPanel';
 
 export default function ConsolePage() {
   const { enabled: safeMode } = useSafeMode();
@@ -84,11 +85,11 @@ export default function ConsolePage() {
         </div>
       </Card>
 
-      <Card title="Last result" subtitle="Raw gateway response.">
+      <Card title="Last result" subtitle="Raw gateway response (collapsed by default).">
         {!result && !busy ? (
           <EmptyState title="No result yet" description="Send a console message to see the gateway response here." />
         ) : (
-          <CodeBlock label={busy ? 'WORKING…' : 'RESULT'}>{result ? JSON.stringify(result, null, 2) : '…'}</CodeBlock>
+          <RawJsonPanel data={result} label={busy ? 'WORKING…' : 'RESULT'} filename="console-result.json" emptyText={busy ? '…' : '—'} />
         )}
       </Card>
     </div>
