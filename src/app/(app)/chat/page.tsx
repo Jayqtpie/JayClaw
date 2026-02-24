@@ -64,6 +64,8 @@ export default function ChatPage() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState<any | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,12 +83,35 @@ export default function ChatPage() {
     }
   }
 
+  async function loadDiag() {
+    setDiagBusy(true);
+    try {
+      const res = await fetch('/api/chat/diag', { cache: 'no-store' });
+      const j = (await res.json().catch(() => null)) as any;
+      setDiagnostic(j);
+    } catch (e: any) {
+      setDiagnostic({ ok: false, error: e?.message || 'Failed to load diagnostics' });
+    } finally {
+      setDiagBusy(false);
+    }
+  }
+
+  async function copyDiag() {
+    try {
+      if (!diagnostic) return;
+      await navigator.clipboard.writeText(JSON.stringify(diagnostic, null, 2));
+    } catch {
+      // ignore
+    }
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed) return;
 
     setBusy(true);
     setError(null);
+    setDiagnostic(null);
 
     // optimistic UI (client-side)
     const optimistic: ChatMsg = {
@@ -103,7 +128,10 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat/send', { method: 'POST', body: JSON.stringify({ message: trimmed }) });
       const j = (await res.json().catch(() => null)) as any;
-      if (!res.ok) throw new Error(j?.error || 'Send failed');
+      if (!res.ok) {
+        if (j?.diagnostic) setDiagnostic(j.diagnostic);
+        throw new Error(j?.error || 'Send failed');
+      }
       setThread(j.thread);
     } catch (e: any) {
       setError(e?.message || 'Send failed');
@@ -137,6 +165,9 @@ export default function ChatPage() {
             <Button variant="outline" onClick={load} disabled={busy}>
               Refresh
             </Button>
+            <Button variant="outline" onClick={loadDiag} disabled={busy || diagBusy}>
+              {diagBusy ? 'Diag…' : 'Diagnostics'}
+            </Button>
             <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>{busy ? 'LIVE' : error ? 'ERROR' : 'READY'}</StatusChip>
           </div>
         }
@@ -147,11 +178,40 @@ export default function ChatPage() {
             title="Chat error"
             message={error}
             right={
-              <Button variant="outline" onClick={load}>
-                Retry
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={load}>
+                  Retry
+                </Button>
+                <Button variant="outline" onClick={loadDiag} disabled={diagBusy}>
+                  {diagBusy ? 'Diag…' : 'Diag'}
+                </Button>
+              </div>
             }
           />
+        ) : null}
+
+        {diagnostic ? (
+          <Alert
+            variant={diagnostic?.ok === false ? 'warning' : 'info'}
+            title="Chat diagnostics"
+            message="Copy/paste this payload into the logs or issue when debugging gateway_error/chat_no_reply."
+            right={
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={copyDiag}>
+                  Copy JSON
+                </Button>
+                <Button variant="outline" onClick={() => setDiagnostic(null)}>
+                  Hide
+                </Button>
+              </div>
+            }
+          />
+        ) : null}
+
+        {diagnostic ? (
+          <pre className="max-h-[240px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
+            {JSON.stringify(diagnostic, null, 2)}
+          </pre>
         ) : null}
 
         {hasErrors ? (
@@ -216,8 +276,9 @@ export default function ChatPage() {
               <div className="font-semibold text-[var(--fg)]">Backend notes</div>
               <div className="mt-1">
                 Replies come from the OpenClaw session chat pipeline (<span className="font-mono">sessions_send</span> + <span className="font-mono">sessions_history</span>).
-                If you get <span className="font-mono">chat_no_reply</span>, verify <span className="font-mono">CHAT_SESSION_KEY</span>. If your gateway deployment
-                does not expose the sessions tools, set <span className="font-mono">CHAT_TOOL_NAMESPACE</span> / <span className="font-mono">CHAT_TOOL_ACTION</span>.
+                If you get <span className="font-mono">chat_no_reply</span>, verify <span className="font-mono">CHAT_SESSION_KEY</span> (or <span className="font-mono">CHAT_SESSION_LABEL</span> on deployments that route by label).
+                If your gateway deployment does not expose the sessions tools, set <span className="font-mono">CHAT_TOOL_NAMESPACE</span> / <span className="font-mono">CHAT_TOOL_ACTION</span>.
+                Use <span className="font-mono">/api/chat/diag</span> for a safe, read-only probe of which path is available.
               </div>
             </div>
           </section>
