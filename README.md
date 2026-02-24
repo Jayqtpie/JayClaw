@@ -92,6 +92,20 @@ If you need durable history on Vercel, wire these stores to a DB/kv (Upstash/Red
 - Scheduler is an MVP and stores reminders in memory (resets on server restart / redeploy).
   - For production, wire this to your Gateway scheduler or persistent storage.
 
+## PERF_NOTES
+
+Recent runtime smoothness pass focused on reducing expensive UI work without changing the overall “glass + flagship” look:
+
+- **Command palette**
+  - Close on **backdrop click**, **Esc**, and a visible **×** button.
+  - Debounced query filtering (120ms) and removed an `O(n²)` render hot-path (`findIndex` in the list).
+  - Hard cap of **80 visible results** to prevent pathological lists from tanking FPS.
+  - Adds/removes a `jc-modal-open` root class while open to pause background animation.
+
+- **Backdrop/blur cost controls**
+  - While a modal is open: pauses the vortex animation and reduces its blur/opacity.
+  - Optional global low-power mode: set `NEXT_PUBLIC_JC_PERF_MODE=1` to disable most backdrop blurs + animation (helpful for remote sessions / weak GPUs).
+
 ## Scripts
 
 - `npm run dev` – local dev server

@@ -233,6 +233,16 @@ export default function Shell({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    // Optional: force a lighter visual mode for low-power devices / remote sessions.
+    // Set NEXT_PUBLIC_JC_PERF_MODE=1
+    if (process.env.NEXT_PUBLIC_JC_PERF_MODE === '1') {
+      document.documentElement.classList.add('jc-perf');
+      return () => document.documentElement.classList.remove('jc-perf');
+    }
+    return;
+  }, []);
+
+  useEffect(() => {
     // Perf: pause heavy backdrop motion while scrolling (especially on low/medium devices).
     let raf = 0;
     let t: any = null;

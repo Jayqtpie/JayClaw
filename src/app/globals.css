@@ -234,6 +234,28 @@ body::before {
   animation-play-state: paused;
 }
 
+/* Perf: when a modal is open (command palette), stop the big background work. */
+.jc-modal-open .jc-vortex {
+  animation-play-state: paused;
+  opacity: 0.5;
+  filter: blur(16px) saturate(1.15);
+}
+
+/* Perf: optional global light mode for low-power / remote sessions. */
+.jc-perf .jc-vortex {
+  animation: none !important;
+  opacity: 0.45;
+  filter: blur(14px) saturate(1.1);
+}
+
+.jc-perf .jc-hud,
+.jc-perf .jc-dock,
+.jc-perf .jc-stage,
+.jc-perf .jc-footer,
+.jc-perf .jc-bottom {
+  backdrop-filter: none;
+}
+
 /* Perf: reduce blur/opacity on smaller devices to avoid clunky scroll. */
 @media (max-width: 768px) {
   .jc-vortex {
