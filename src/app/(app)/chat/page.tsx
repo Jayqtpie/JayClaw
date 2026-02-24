@@ -65,6 +65,7 @@ export default function ChatPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<any | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagBusy, setDiagBusy] = useState(false);
   const [relayMode, setRelayMode] = useState(false);
 
@@ -90,8 +91,10 @@ export default function ChatPage() {
       const res = await fetch('/api/chat/diag', { cache: 'no-store' });
       const j = (await res.json().catch(() => null)) as any;
       setDiagnostic(j);
+      setShowDiagnostics(false);
     } catch (e: any) {
       setDiagnostic({ ok: false, error: e?.message || 'Failed to load diagnostics' });
+      setShowDiagnostics(false);
     } finally {
       setDiagBusy(false);
     }
@@ -113,6 +116,7 @@ export default function ChatPage() {
     setBusy(true);
     setError(null);
     setDiagnostic(null);
+    setShowDiagnostics(false);
     setRelayMode(false);
 
     // optimistic UI (client-side)
@@ -131,11 +135,17 @@ export default function ChatPage() {
       const res = await fetch('/api/chat/send', { method: 'POST', body: JSON.stringify({ message: trimmed }) });
       const j = (await res.json().catch(() => null)) as any;
       if (!res.ok) {
-        if (j?.diagnostic) setDiagnostic(j.diagnostic);
+        if (j?.diagnostic) {
+          setDiagnostic(j.diagnostic);
+          setShowDiagnostics(false);
+        }
         throw new Error(j?.error || 'Send failed');
       }
       setRelayMode(j?.result?.mode === 'relay');
-      if (j?.result?.mode === 'relay' && j?.result?.diagnostic) setDiagnostic(j.result.diagnostic);
+      if (j?.result?.mode === 'relay' && j?.result?.diagnostic) {
+        setDiagnostic(j.result.diagnostic);
+        setShowDiagnostics(false);
+      }
       setThread(j.thread);
     } catch (e: any) {
       setError(e?.message || 'Send failed');
@@ -195,25 +205,46 @@ export default function ChatPage() {
           />
         ) : null}
 
+        {relayMode && !diagnostic ? (
+          <Alert
+            variant="warning"
+            title="Relay mode"
+            message="Relay mode: the gateway sessions tools are unavailable, so replies are routed via the relay fallback."
+          />
+        ) : null}
+
         {diagnostic ? (
           <Alert
             variant={diagnostic?.ok === false ? 'warning' : 'info'}
-            title="Chat diagnostics"
-            message="Copy/paste this payload into the logs or issue when debugging gateway_error/chat_no_reply."
+            title="Diagnostics captured"
+            message={
+              relayMode
+                ? 'Relay mode: the gateway sessions tools are unavailable, so replies are routed via the relay fallback. (Open diagnostics if you need the full attempt trace.)'
+                : 'Use diagnostics only when debugging gateway_error/chat_no_reply.'
+            }
             right={
               <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setShowDiagnostics((v) => !v)}>
+                  {showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
+                </Button>
                 <Button variant="outline" onClick={copyDiag}>
                   Copy JSON
                 </Button>
-                <Button variant="outline" onClick={() => setDiagnostic(null)}>
-                  Hide
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDiagnostic(null);
+                    setShowDiagnostics(false);
+                  }}
+                >
+                  Clear
                 </Button>
               </div>
             }
           />
         ) : null}
 
-        {diagnostic ? (
+        {diagnostic && showDiagnostics ? (
           <pre className="max-h-[240px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
             {JSON.stringify(diagnostic, null, 2)}
           </pre>

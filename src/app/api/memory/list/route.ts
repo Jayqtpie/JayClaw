@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { invokeTool } from '@/lib/openclaw';
 import { normalizeDateParam, resolveMemoryFsConfig } from '@/lib/memoryFs';
 
 export type MemoryDocType = 'root' | 'daily' | 'unknown';
+export type MemoryListMode = 'local' | 'gateway';
 
 export type MemoryListItem = {
-  id: string; // e.g. "MEMORY.md" or "memory/2026-02-24.md"
-  source: 'MEMORY.md' | 'memory';
+  id: string; // e.g. "MEMORY.md" or "memory/2026-02-24.md" or a gateway memory id
+  source: 'MEMORY.md' | 'memory' | 'gateway';
   fileName: string;
   type: MemoryDocType;
-  date?: string; // inferred as YYYY-MM-DD (from filename)
+  date?: string; // inferred as YYYY-MM-DD (from filename / id)
   project?: string | null;
   mtimeMs?: number;
   size?: number;
@@ -36,8 +38,8 @@ async function readHead(fullPath: string, maxBytes = 8192) {
   }
 }
 
-function inferDate(fileName: string): string | undefined {
-  const m = fileName.match(/(\d{4}-\d{2}-\d{2})/);
+function inferDate(input: string): string | undefined {
+  const m = input.match(/(\d{4}-\d{2}-\d{2})/);
   return m?.[1];
 }
 
@@ -71,7 +73,34 @@ function itemTypeFromId(id: string): MemoryDocType {
   return 'unknown';
 }
 
-async function buildList(): Promise<{
+function truncatePreview(input: string, max = 2500) {
+  const s = String(input || '');
+  if (s.length <= max) return s;
+  return s.slice(0, max - 12) + '\n…(truncated)';
+}
+
+function extractGatewayHits(result: any): Array<{ id: string; preview: string; title?: string | null }> {
+  const candidates: any[] =
+    (Array.isArray(result?.hits) && result.hits) ||
+    (Array.isArray(result?.items) && result.items) ||
+    (Array.isArray(result?.results) && result.results) ||
+    (Array.isArray(result) && result) ||
+    [];
+
+  const hits: Array<{ id: string; preview: string; title?: string | null }> = [];
+  for (const h of candidates) {
+    const id = String(h?.id || h?.key || h?.memoryId || h?.docId || '').trim();
+    if (!id) continue;
+    const title = (h?.title ?? h?.file ?? h?.name ?? null) as string | null;
+    const previewRaw = h?.text ?? h?.snippet ?? h?.preview ?? h?.content ?? '';
+    const preview = truncatePreview(typeof previewRaw === 'string' ? previewRaw : JSON.stringify(previewRaw, null, 2));
+    hits.push({ id, preview, title: title ? String(title).slice(0, 140) : null });
+  }
+  return hits;
+}
+
+async function buildListLocal(): Promise<{
+  mode: MemoryListMode;
   items: MemoryListItem[];
   warnings: string[];
   resolved: { rootFile: string | null; dailyDir: string | null };
@@ -142,7 +171,51 @@ async function buildList(): Promise<{
     return bm - am;
   });
 
-  return { items, warnings: cfg.warnings, resolved: { rootFile: cfg.rootFile, dailyDir: cfg.dailyDir } };
+  return { mode: 'local', items, warnings: cfg.warnings, resolved: { rootFile: cfg.rootFile, dailyDir: cfg.dailyDir } };
+}
+
+async function buildListGateway(seedQuery: string, limit: number): Promise<{
+  mode: MemoryListMode;
+  items: MemoryListItem[];
+  warnings: string[];
+  resolved: { rootFile: null; dailyDir: null };
+}> {
+  const warnings = [
+    'Local memory files are not available in this deployment; showing gateway-backed results instead.',
+  ];
+
+  const queriesToTry = [seedQuery, '', '202'];
+  let result: any = null;
+  let lastErr: any = null;
+  for (const q of queriesToTry) {
+    try {
+      result = await invokeTool<any>({
+        namespace: 'memory',
+        action: 'search',
+        params: { query: q, limit },
+      });
+      lastErr = null;
+      break;
+    } catch (e: any) {
+      lastErr = e;
+    }
+  }
+
+  if (!result && lastErr) throw lastErr;
+
+  const hits = extractGatewayHits(result);
+  const items: MemoryListItem[] = hits.map((h) => ({
+    id: h.id,
+    source: 'gateway',
+    fileName: h.title || h.id,
+    type: 'unknown',
+    date: inferDate(h.id),
+    project: null,
+    title: h.title || null,
+    preview: h.preview,
+  }));
+
+  return { mode: 'gateway', items, warnings, resolved: { rootFile: null, dailyDir: null } };
 }
 
 export async function GET(req: Request) {
@@ -156,19 +229,30 @@ export async function GET(req: Request) {
   const date = normalizeDateParam((searchParams.get('date') || '').trim()); // YYYY-MM-DD exact (accepts dd/mm/yyyy)
 
   try {
-    const built = await buildList();
+    const cfg = await resolveMemoryFsConfig();
+    const hasLocal = Boolean(cfg.rootFile || cfg.dailyDir);
+
+    const built = hasLocal
+      ? await buildListLocal()
+      : await buildListGateway(project || date || '202', Math.min(200, page * pageSize));
+
     let all = built.items;
 
-    if (source === 'MEMORY.md' || source === 'memory') {
-      all = all.filter((i) => i.source === source);
+    // In gateway mode we can't reliably filter by source/type/project.
+    // We still apply date filtering if we can infer it from the id.
+    if (built.mode === 'local') {
+      if (source === 'MEMORY.md' || source === 'memory') {
+        all = all.filter((i) => i.source === source);
+      }
+      if (type === 'root' || type === 'daily' || type === 'unknown') {
+        all = all.filter((i) => i.type === type);
+      }
+      if (project) {
+        const p = project.toLowerCase();
+        all = all.filter((i) => (i.project || '').toLowerCase().includes(p));
+      }
     }
-    if (type === 'root' || type === 'daily' || type === 'unknown') {
-      all = all.filter((i) => i.type === type);
-    }
-    if (project) {
-      const p = project.toLowerCase();
-      all = all.filter((i) => (i.project || '').toLowerCase().includes(p));
-    }
+
     if (date) {
       all = all.filter((i) => i.date === date);
     }
@@ -188,6 +272,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      mode: built.mode,
       page,
       pageSize,
       total,

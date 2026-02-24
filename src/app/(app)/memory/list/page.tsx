@@ -8,7 +8,7 @@ type MemoryDocType = 'root' | 'daily' | 'unknown';
 
 type MemoryListItem = {
   id: string;
-  source: 'MEMORY.md' | 'memory';
+  source: 'MEMORY.md' | 'memory' | 'gateway';
   fileName: string;
   type: MemoryDocType;
   date?: string;
@@ -21,6 +21,7 @@ type MemoryListItem = {
 
 type MemoryListResponse = {
   ok: true;
+  mode: 'local' | 'gateway';
   page: number;
   pageSize: number;
   total: number;
@@ -191,11 +192,20 @@ export default function MemoryListPage() {
     setOpenTruncated(false);
 
     try {
-      const res = await fetch(`/api/memory/doc?id=${encodeURIComponent(item.id)}`, { cache: 'no-store' });
-      const j = (await res.json().catch(() => null)) as any;
-      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Load failed');
-      setOpenBody(String(j.content || ''));
-      setOpenTruncated(Boolean(j.truncated));
+      if (item.source === 'gateway') {
+        const res = await fetch(`/api/memory/get?id=${encodeURIComponent(item.id)}`, { cache: 'no-store' });
+        const j = (await res.json().catch(() => null)) as any;
+        if (!res.ok || !j?.ok) throw new Error(j?.error || 'Load failed');
+        const payload = j.result ?? j.snippet ?? j;
+        setOpenBody(typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2));
+        setOpenTruncated(false);
+      } else {
+        const res = await fetch(`/api/memory/doc?id=${encodeURIComponent(item.id)}`, { cache: 'no-store' });
+        const j = (await res.json().catch(() => null)) as any;
+        if (!res.ok || !j?.ok) throw new Error(j?.error || 'Load failed');
+        setOpenBody(String(j.content || ''));
+        setOpenTruncated(Boolean(j.truncated));
+      }
     } catch (e: any) {
       setOpenError(e?.message || 'Load failed');
       setOpenBody(item.preview || '');
@@ -219,11 +229,18 @@ export default function MemoryListPage() {
     <div className="space-y-6">
       <Card
         title="Memory List"
-        subtitle="Browse memory files (MEMORY.md + memory/*.md). Uses server-side file reads only."
+        subtitle="Browse memory docs (local files when configured; gateway fallback when server filesystem is unavailable)."
         right={
-          <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>
-            {busy ? 'Loading…' : error ? 'Error' : `${total} docs`}
-          </StatusChip>
+          <div className="flex flex-wrap items-center gap-2">
+            {data?.mode ? (
+              <StatusChip tone={data.mode === 'gateway' ? 'info' : 'ok'}>
+                {data.mode === 'gateway' ? 'Gateway mode' : 'Local mode'}
+              </StatusChip>
+            ) : null}
+            <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>
+              {busy ? 'Loading…' : error ? 'Error' : `${total} docs`}
+            </StatusChip>
+          </div>
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -254,6 +271,7 @@ export default function MemoryListPage() {
             <option value="">All</option>
             <option value="MEMORY.md">MEMORY.md</option>
             <option value="memory">memory/</option>
+            <option value="gateway">gateway</option>
           </MiniSelect>
 
           <MiniSelect label="Type" value={type} onChange={(v) => {
@@ -322,16 +340,18 @@ export default function MemoryListPage() {
         <div className="mt-4 space-y-2">
           {data?.warnings?.length ? (
             <Alert
-              variant="warning"
-              title="Memory paths need attention"
+              variant={data?.mode === 'gateway' ? 'info' : 'warning'}
+              title={data?.mode === 'gateway' ? 'Gateway-backed listing' : 'Memory paths'}
               message={
                 <div className="space-y-1">
                   {data.warnings.map((w, idx) => (
                     <div key={idx}>{w}</div>
                   ))}
-                  <div className="mt-2 text-xs">
-                    Tip: ensure the server can read the memory files. Expected: <span className="font-mono">MEMORY.md</span> and <span className="font-mono">memory/*.md</span>.
-                  </div>
+                  {data?.mode === 'local' ? (
+                    <div className="mt-2 text-xs">
+                      Tip: ensure the server can read <span className="font-mono">MEMORY.md</span> and <span className="font-mono">memory/*.md</span>.
+                    </div>
+                  ) : null}
                 </div>
               }
             />
@@ -375,11 +395,15 @@ export default function MemoryListPage() {
 
       {data?.items?.length ? (
         <div className="space-y-6">
-          {(['MEMORY.md', 'memory'] as const).map((k) => {
+          {(['MEMORY.md', 'memory', 'gateway'] as const).map((k) => {
             const items = groups[k] || [];
             if (!items.length) return null;
             return (
-              <Card key={k} title={k === 'MEMORY.md' ? 'MEMORY.md' : 'memory/'} subtitle={`${items.length} shown (this page)`}>
+              <Card
+                key={k}
+                title={k === 'MEMORY.md' ? 'MEMORY.md' : k === 'memory' ? 'memory/' : 'gateway'}
+                subtitle={`${items.length} shown (this page)`}
+              >
                 <div className="space-y-2">
                   {items.map((it) => {
                     const label = it.title || it.fileName;
