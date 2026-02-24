@@ -17,7 +17,8 @@ A Vercel-ready Next.js (App Router, TypeScript) control panel for securely opera
   - Stored as a signed httpOnly cookie (`occ_safe_mode`).
   - Mutating API routes call `requireNotSafeMode()` and return `409 safe_mode_enabled` when blocked.
 - **Audit trail:**
-  - Mutating API routes append JSONL entries to `data/audit.jsonl` (ignored by git).
+  - Mutating API routes append JSONL entries to `./.jayclaw-data/audit.jsonl` when a writable filesystem is available.
+  - On serverless / read-only filesystems, the app automatically falls back to an in-memory log (graceful empty state on cold start).
 
 ## Pages
 
@@ -57,6 +58,23 @@ Open: <http://localhost:3000>
    - `APP_ACCESS_KEY`
    - (optional) `OPENCLAW_MEMORY_DIR` (only relevant if you deploy with memory files available)
 4. Deploy.
+
+### Vercel runtime notes (persistence)
+
+Vercel Serverless/Edge runtimes often have an **ephemeral and/or read-only filesystem**.
+
+JayClaw’s local persistence (chat thread + audit trail) is therefore **best-effort**:
+
+- By default it tries to write under `./.jayclaw-data/`.
+- If writes fail (e.g. `EROFS`), it automatically **falls back to in-memory storage** and API routes return **graceful empty states** (no hard 500s).
+
+You can control this with:
+
+- `JAYCLAW_DATA_DIR` – path to a writable directory (if your runtime provides one)
+- `JAYCLAW_AUDIT_PATH` – override the audit JSONL file path
+- `JAYCLAW_PERSISTENCE=memory` – force in-memory mode (useful for strict serverless)
+
+If you need durable history on Vercel, wire these stores to a DB/kv (Upstash/Redis, Postgres, etc.).
 
 ### Notes
 

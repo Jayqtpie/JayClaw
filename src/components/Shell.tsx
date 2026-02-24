@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Button, RailItem, StatusChip } from '@/components/ui';
 import ThemeToggle from '@/components/ThemeToggle';
 import CommandPalette, { type CommandItem } from '@/components/CommandPalette';
@@ -179,54 +180,82 @@ export default function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const ops = useOpsStatus({ refreshMs: 30000 });
 
-  async function logout() {
+  const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
     router.refresh();
-  }
+  }, [router]);
 
   const statusTone = ops.loading ? 'idle' : ops.data?.ok ? 'ok' : 'bad';
   const statusText = ops.loading ? 'LINKING…' : ops.data?.ok ? 'ONLINE' : 'OFFLINE';
 
-  const paletteItems: CommandItem[] = [
-    { id: 'nav-chat', label: 'Chat', hint: 'Native dashboard chat (assistant replies)', group: 'Navigate', href: '/chat', keywords: ['assistant', 'talk'] },
-    { id: 'nav-console', label: 'Console', hint: 'Message routing / outbound sends', group: 'Navigate', href: '/console', keywords: ['message', 'send'] },
-    { id: 'nav-subagents', label: 'Subagents', hint: 'List / spawn / steer', group: 'Navigate', href: '/subagents', keywords: ['agents', 'spawn'] },
-    { id: 'nav-ops', label: 'Ops', hint: 'Status + restart + diagnostics', group: 'Navigate', href: '/ops', keywords: ['status', 'restart'] },
-    { id: 'nav-scheduler', label: 'Scheduler', hint: 'List + run scheduled tasks', group: 'Navigate', href: '/scheduler', keywords: ['jobs', 'cron'] },
-    { id: 'nav-health', label: 'Health Wall', hint: 'Gateway health + token + SSL', group: 'Navigate', href: '/health', keywords: ['health', 'ssl', 'diag'] },
-    { id: 'nav-audit', label: 'Audit Trail', hint: 'Recent actions + outcomes', group: 'Navigate', href: '/audit', keywords: ['audit', 'logs'] },
-    { id: 'nav-memory', label: 'Memory', hint: 'Search + fetch memories', group: 'Navigate', href: '/memory', keywords: ['search', 'notes'] },
-    { id: 'nav-quick', label: 'Quick Actions', hint: 'Common operator flows', group: 'Navigate', href: '/quick', keywords: ['templates', 'macros'] },
+  const paletteItems: CommandItem[] = useMemo(
+    () => [
+      { id: 'nav-chat', label: 'Chat', hint: 'Native dashboard chat (assistant replies)', group: 'Navigate', href: '/chat', keywords: ['assistant', 'talk'] },
+      { id: 'nav-console', label: 'Console', hint: 'Message routing / outbound sends', group: 'Navigate', href: '/console', keywords: ['message', 'send'] },
+      { id: 'nav-subagents', label: 'Subagents', hint: 'List / spawn / steer', group: 'Navigate', href: '/subagents', keywords: ['agents', 'spawn'] },
+      { id: 'nav-ops', label: 'Ops', hint: 'Status + restart + diagnostics', group: 'Navigate', href: '/ops', keywords: ['status', 'restart'] },
+      { id: 'nav-scheduler', label: 'Scheduler', hint: 'List + run scheduled tasks', group: 'Navigate', href: '/scheduler', keywords: ['jobs', 'cron'] },
+      { id: 'nav-health', label: 'Health Wall', hint: 'Gateway health + token + SSL', group: 'Navigate', href: '/health', keywords: ['health', 'ssl', 'diag'] },
+      { id: 'nav-audit', label: 'Audit Trail', hint: 'Recent actions + outcomes', group: 'Navigate', href: '/audit', keywords: ['audit', 'logs'] },
+      { id: 'nav-memory', label: 'Memory', hint: 'Search + fetch memories', group: 'Navigate', href: '/memory', keywords: ['search', 'notes'] },
+      { id: 'nav-quick', label: 'Quick Actions', hint: 'Common operator flows', group: 'Navigate', href: '/quick', keywords: ['templates', 'macros'] },
 
-    {
-      id: 'act-theme',
-      label: 'Toggle theme',
-      hint: 'Switch between light and dark',
-      group: 'Actions',
-      action: () => {
-        window.dispatchEvent(new Event('jc:toggle-theme'));
+      {
+        id: 'act-theme',
+        label: 'Toggle theme',
+        hint: 'Switch between light and dark',
+        group: 'Actions',
+        action: () => {
+          window.dispatchEvent(new Event('jc:toggle-theme'));
+        },
+        keywords: ['dark', 'light'],
+        shortcut: 'T',
       },
-      keywords: ['dark', 'light'],
-      shortcut: 'T',
-    },
-    {
-      id: 'act-refresh-status',
-      label: 'Refresh gateway status',
-      hint: 'Re-check session_status',
-      group: 'Diagnostics',
-      action: () => ops.refresh(),
-      keywords: ['ping', 'health'],
-    },
-    {
-      id: 'act-logout',
-      label: 'Logout',
-      hint: 'End session (server-side cookie)',
-      group: 'Account',
-      action: logout,
-      keywords: ['sign out'],
-    },
-  ];
+      {
+        id: 'act-refresh-status',
+        label: 'Refresh gateway status',
+        hint: 'Re-check session_status',
+        group: 'Diagnostics',
+        action: () => ops.refresh(),
+        keywords: ['ping', 'health'],
+      },
+      {
+        id: 'act-logout',
+        label: 'Logout',
+        hint: 'End session (server-side cookie)',
+        group: 'Account',
+        action: logout,
+        keywords: ['sign out'],
+      },
+    ],
+    [logout, ops.refresh]
+  );
+
+  useEffect(() => {
+    // Perf: pause heavy backdrop motion while scrolling (especially on low/medium devices).
+    let raf = 0;
+    let t: any = null;
+    const root = document.documentElement;
+
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        root.classList.add('jc-scrolling');
+        if (t) window.clearTimeout(t);
+        t = window.setTimeout(() => root.classList.remove('jc-scrolling'), 160);
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (raf) window.cancelAnimationFrame(raf);
+      if (t) window.clearTimeout(t);
+      root.classList.remove('jc-scrolling');
+    };
+  }, []);
 
   return (
     <SafeModeProvider>

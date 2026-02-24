@@ -35,7 +35,16 @@ function extractAssistantText(result: any): string | null {
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { message?: string } | null;
   const message = body?.message?.trim();
-  if (!message) return NextResponse.json({ ok: false, error: 'missing_message' }, { status: 400 });
+  if (!message)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'missing_message',
+        code: 'missing_message',
+        hint: 'POST JSON: { "message": "..." }',
+      },
+      { status: 400 }
+    );
 
   const userMsg = await appendMessage({ role: 'user', text: message, status: 'sending' });
 

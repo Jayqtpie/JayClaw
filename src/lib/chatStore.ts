@@ -21,43 +21,101 @@ export type ChatThread = {
   messages: ChatMessage[];
 };
 
+type StoreMode = 'fs' | 'memory';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __jayclawChat: { mode: StoreMode; thread: ChatThread } | undefined;
+}
+
+function memStore() {
+  if (!globalThis.__jayclawChat) {
+    globalThis.__jayclawChat = {
+      mode: 'memory',
+      thread: { v: 1, updatedAt: Date.now(), messages: [] },
+    };
+  }
+  return globalThis.__jayclawChat;
+}
+
+let fsMode: StoreMode | null = null;
+
 function dataDir() {
-  // Keep it inside the app folder (deploy-friendly) but outside /public.
-  // If your host uses ephemeral FS, swap this for a DB.
-  return process.env.JAYCLAW_DATA_DIR
-    ? path.resolve(process.env.JAYCLAW_DATA_DIR)
-    : path.resolve(process.cwd(), '.jayclaw-data');
+  // Deploy-friendly, but may be ephemeral / read-only on serverless.
+  // Override with JAYCLAW_DATA_DIR if you have a writable mount.
+  return process.env.JAYCLAW_DATA_DIR ? path.resolve(process.env.JAYCLAW_DATA_DIR) : path.resolve(process.cwd(), '.jayclaw-data');
 }
 
 function threadPath() {
   return path.join(dataDir(), 'chat-thread.json');
 }
 
-async function ensureDir() {
-  await fs.mkdir(dataDir(), { recursive: true });
+async function detectFsWritable(): Promise<boolean> {
+  if (fsMode) return fsMode === 'fs';
+
+  const forced = (process.env.JAYCLAW_PERSISTENCE || '').toLowerCase();
+  if (forced === 'memory') {
+    fsMode = 'memory';
+    return false;
+  }
+
+  try {
+    await fs.mkdir(dataDir(), { recursive: true });
+    // Try a minimal write to detect EROFS.
+    const probe = path.join(dataDir(), '.write-probe');
+    await fs.writeFile(probe, 'ok', 'utf8');
+    await fs.unlink(probe).catch(() => null);
+    fsMode = 'fs';
+    return true;
+  } catch {
+    fsMode = 'memory';
+    return false;
+  }
 }
 
 function newId(prefix: string) {
   return `${prefix}_${crypto.randomBytes(9).toString('hex')}`;
 }
 
+function capMessages(messages: ChatMessage[], cap = 200) {
+  if (messages.length <= cap) return messages;
+  return messages.slice(-cap);
+}
+
 export async function readThread(): Promise<ChatThread> {
-  await ensureDir();
+  const canFs = await detectFsWritable();
+  if (!canFs) return memStore().thread;
+
   try {
     const raw = await fs.readFile(threadPath(), 'utf8');
     const json = JSON.parse(raw) as ChatThread;
     if (json?.v !== 1 || !Array.isArray(json.messages)) throw new Error('bad_thread');
     return json;
   } catch {
+    // If the file is missing/corrupt, return empty; if FS is broken, degrade to memory.
     return { v: 1, updatedAt: Date.now(), messages: [] };
   }
 }
 
 async function writeThread(thread: ChatThread) {
-  await ensureDir();
-  const tmp = threadPath() + '.tmp';
-  await fs.writeFile(tmp, JSON.stringify(thread, null, 2), 'utf8');
-  await fs.rename(tmp, threadPath());
+  const canFs = await detectFsWritable();
+  if (!canFs) {
+    const mem = memStore();
+    mem.thread = thread;
+    return;
+  }
+
+  try {
+    await fs.mkdir(dataDir(), { recursive: true });
+    const tmp = threadPath() + '.tmp';
+    await fs.writeFile(tmp, JSON.stringify(thread, null, 2), 'utf8');
+    await fs.rename(tmp, threadPath());
+  } catch {
+    // FS not writable after all; fall back.
+    fsMode = 'memory';
+    const mem = memStore();
+    mem.thread = thread;
+  }
 }
 
 export async function appendMessage(msg: Omit<ChatMessage, 'id' | 'ts'> & { id?: string; ts?: number }): Promise<ChatMessage> {
@@ -70,9 +128,8 @@ export async function appendMessage(msg: Omit<ChatMessage, 'id' | 'ts'> & { id?:
     status: msg.status,
   };
   thread.messages.push(full);
+  thread.messages = capMessages(thread.messages);
   thread.updatedAt = Date.now();
-  // cap to last 200 to keep perf sane
-  if (thread.messages.length > 200) thread.messages = thread.messages.slice(-200);
   await writeThread(thread);
   return full;
 }
@@ -89,4 +146,9 @@ export async function updateMessage(id: string, patch: Partial<ChatMessage>): Pr
 
 export async function clearThread(): Promise<void> {
   await writeThread({ v: 1, updatedAt: Date.now(), messages: [] });
+}
+
+export async function chatStoreInfo(): Promise<{ mode: StoreMode; persistent: boolean; path?: string }> {
+  const canFs = await detectFsWritable();
+  return canFs ? { mode: 'fs', persistent: true, path: threadPath() } : { mode: 'memory', persistent: false };
 }

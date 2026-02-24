@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 export type OpsStatus = {
   ok: boolean;
@@ -12,7 +12,7 @@ export function useOpsStatus({ refreshMs = 30000 }: { refreshMs?: number } = {})
   const [data, setData] = useState<OpsStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/ops/status', { cache: 'no-store' });
@@ -27,14 +27,13 @@ export function useOpsStatus({ refreshMs = 30000 }: { refreshMs?: number } = {})
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
     const t = window.setInterval(() => void load(), refreshMs);
     return () => window.clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshMs]);
+  }, [load, refreshMs]);
 
   return { data, loading, refresh: load };
 }
