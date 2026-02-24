@@ -87,18 +87,22 @@ export default function ConsolePage() {
         </div>
       </Card>
 
-      <Card title="Last send" subtitle="Success mode: direct send vs relay. Diagnostics are hidden by default.">
+      <Card title="Last send" subtitle="Delivery status. Relay is treated as success; diagnostics are hidden by default.">
         {!result && !busy ? (
           <EmptyState title="No result yet" description="Send a console message to see the server response here." />
         ) : (
           <div className="space-y-3">
             {result?.ok ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="text-sm">
-                  Mode:{' '}
-                  <span className="font-medium">{result?.mode === 'relay' ? 'relay' : 'sent'}</span>
+                  Delivery:{' '}
+                  <span className="font-medium">
+                    {result?.mode === 'relay' ? 'Delivered via relay' : 'Delivered'}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
+
+                {/* Mobile: keep diagnostics collapsed by default and avoid cramped button rows. */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <Button
                     onClick={() => setShowDiagnostic((v) => !v)}
                     disabled={!result?.diagnostic}
@@ -112,12 +116,9 @@ export default function ConsolePage() {
 
             {result?.ok && result?.mode === 'relay' ? (
               <Alert
-                variant="warning"
-                title="Relayed"
-                message={
-                  result?.note ||
-                  'Direct send was not available. The message was relayed to the main assistant session.'
-                }
+                variant="success"
+                title="Delivered via relay"
+                message="Direct message delivery is unavailable in this deployment; the request was successfully relayed to the main assistant session."
               />
             ) : null}
 
@@ -130,9 +131,9 @@ export default function ConsolePage() {
 
             {showDiagnostic ? (
               <RawJsonPanel
-                data={result?.diagnostic}
-                label="DIAGNOSTIC"
-                filename="console-diagnostic.json"
+                data={{ note: result?.note, diagnostic: result?.diagnostic }}
+                label="DIAGNOSTICS"
+                filename="console-diagnostics.json"
                 emptyText="—"
               />
             ) : null}
