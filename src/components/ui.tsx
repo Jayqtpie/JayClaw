@@ -225,11 +225,11 @@ export function EmptyState({
 
 export function CodeBlock({ children, label }: { children: ReactNode; label?: string }) {
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       {label ? (
         <div className="mb-2 text-xs font-semibold tracking-[0.18em] text-[var(--muted-2)]">{label}</div>
       ) : null}
-      <pre className="max-h-[560px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--code)_92%,black)] p-4 text-xs text-[var(--code-fg)] shadow-sm">
+      <pre className="w-full max-w-full min-w-0 max-h-[560px] overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--code)_92%,black)] p-4 text-xs text-[var(--code-fg)] shadow-sm">
         {children}
       </pre>
     </div>
@@ -252,7 +252,7 @@ export function Card({
   return (
     <section
       className={cx(
-        'rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)] backdrop-blur-xl',
+        'min-w-0 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)] backdrop-blur-xl',
         tone === 'raised' && 'shadow-[var(--shadow-lg)]'
       )}
     >
