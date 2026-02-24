@@ -12,6 +12,7 @@ export default function ConsolePage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
 
   const canSend = useMemo(() => message.trim().length > 0 && !busy && !safeMode, [message, busy, safeMode]);
 
@@ -21,6 +22,7 @@ export default function ConsolePage() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setShowDiagnostic(false);
     try {
       const res = await fetch('/api/console/send', {
         method: 'POST',
@@ -29,7 +31,7 @@ export default function ConsolePage() {
       });
       const j = (await res.json().catch(() => null)) as any;
       if (!res.ok) {
-        // Surface anything the server gave us, and keep it visible in Last result.
+        // Surface anything the server gave us.
         setResult(j);
         const msgParts: string[] = [];
         if (j?.error) msgParts.push(String(j.error));
@@ -38,7 +40,7 @@ export default function ConsolePage() {
         setError(msgParts.join('\n'));
         return;
       }
-      setResult(j?.result ?? j);
+      setResult(j);
       setMessage('');
     } catch (e: any) {
       setResult({ ok: false, error: e?.message || 'Send failed' });
@@ -85,11 +87,56 @@ export default function ConsolePage() {
         </div>
       </Card>
 
-      <Card title="Last result" subtitle="Raw gateway response (collapsed by default).">
+      <Card title="Last send" subtitle="Success mode: direct send vs relay. Diagnostics are hidden by default.">
         {!result && !busy ? (
-          <EmptyState title="No result yet" description="Send a console message to see the gateway response here." />
+          <EmptyState title="No result yet" description="Send a console message to see the server response here." />
         ) : (
-          <RawJsonPanel data={result} label={busy ? 'WORKING…' : 'RESULT'} filename="console-result.json" emptyText={busy ? '…' : '—'} />
+          <div className="space-y-3">
+            {result?.ok ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm">
+                  Mode:{' '}
+                  <span className="font-medium">{result?.mode === 'relay' ? 'relay' : 'sent'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setShowDiagnostic((v) => !v)}
+                    disabled={!result?.diagnostic}
+                    variant="outline"
+                  >
+                    {showDiagnostic ? 'Hide diagnostics' : 'Show diagnostics'}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {result?.ok && result?.mode === 'relay' ? (
+              <Alert
+                variant="warning"
+                title="Relayed"
+                message={
+                  result?.note ||
+                  'Direct send was not available. The message was relayed to the main assistant session.'
+                }
+              />
+            ) : null}
+
+            <RawJsonPanel
+              data={result?.result ?? result}
+              label={busy ? 'WORKING…' : result?.ok ? 'RESULT' : 'ERROR'}
+              filename="console-result.json"
+              emptyText={busy ? '…' : '—'}
+            />
+
+            {showDiagnostic ? (
+              <RawJsonPanel
+                data={result?.diagnostic}
+                label="DIAGNOSTIC"
+                filename="console-diagnostic.json"
+                emptyText="—"
+              />
+            ) : null}
+          </div>
         )}
       </Card>
     </div>
