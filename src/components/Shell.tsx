@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, RailItem, StatusChip } from '@/components/ui';
 import dynamic from 'next/dynamic';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -197,6 +197,8 @@ export default function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const ops = useOpsStatus({ refreshMs: 30000 });
 
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
@@ -316,7 +318,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         {/* Full-bleed flagship backdrop (FX mode only) */}
         {fxEnabled ? <div className="jc-vortex" aria-hidden="true" /> : null}
 
-        <div className="relative mx-auto max-w-[1440px] px-3 pt-4 pb-28 sm:px-4 sm:pt-5 md:px-6 md:pt-6 lg:pb-6">
+        <div className="relative mx-auto max-w-[1440px] px-3 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] sm:px-4 sm:pt-5 md:px-6 md:pt-6 lg:pb-6">
           {/* HUD bar */}
           <header className="jc-hud">
             <div className="jc-hud__left">
@@ -337,14 +339,48 @@ export default function Shell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="jc-hud__right">
-              <TopSafetyControls />
-              <CommandPalette items={paletteItems} />
+              {/* Desktop controls */}
+              <div className="hidden flex-wrap items-center justify-end gap-2 lg:flex">
+                <TopSafetyControls />
+                <CommandPalette items={paletteItems} />
+                <ThemeToggle />
+                <Button variant="outline" onClick={logout}>
+                  Logout
+                </Button>
+              </div>
+
+              {/* Mobile controls drawer toggle */}
+              <div className="flex items-center justify-end gap-2 lg:hidden">
+                <Button
+                  variant="outline"
+                  onClick={() => setMobileControlsOpen((v) => !v)}
+                  aria-expanded={mobileControlsOpen}
+                  aria-controls="jc-mobile-controls"
+                >
+                  {mobileControlsOpen ? 'Close' : 'Controls'}
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          {/* Mobile controls drawer */}
+          <div
+            id="jc-mobile-controls"
+            className={
+              mobileControlsOpen
+                ? 'mt-3 grid gap-3 rounded-[22px] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_86%,transparent)] p-3 shadow-[var(--shadow)] lg:hidden'
+                : 'hidden'
+            }
+          >
+            <TopSafetyControls />
+            <CommandPalette items={paletteItems} />
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <ThemeToggle />
               <Button variant="outline" onClick={logout}>
                 Logout
               </Button>
             </div>
-          </header>
+          </div>
 
           {/* Shell grid: Dock + Stage */}
           <div className="mt-4 grid gap-4 lg:mt-5 lg:gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">

@@ -209,7 +209,7 @@ export default function ChatPage() {
           <Alert
             variant="warning"
             title="Relay mode"
-            message="Relay mode: the gateway sessions tools are unavailable, so replies are routed via the relay fallback."
+            message="Relay mode: gateway tools unavailable; routing via relay."
           />
         ) : null}
 
@@ -219,7 +219,7 @@ export default function ChatPage() {
             title="Diagnostics captured"
             message={
               relayMode
-                ? 'Relay mode: the gateway sessions tools are unavailable, so replies are routed via the relay fallback. (Open diagnostics if you need the full attempt trace.)'
+                ? 'Relay mode: routing via relay. Open diagnostics for the attempt trace.'
                 : 'Use diagnostics only when debugging gateway_error/chat_no_reply.'
             }
             right={

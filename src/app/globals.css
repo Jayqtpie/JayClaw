@@ -482,6 +482,8 @@ html[data-jc-fx="1"] .jc-bottom {
 
   .jc-stage__main {
     gap: 12px;
+    /* Prevent fixed bottom nav from covering compose/actions on mobile. */
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .jc-footer {
@@ -490,7 +492,9 @@ html[data-jc-fx="1"] .jc-bottom {
   }
 
   .jc-hud {
-    top: 10px;
+    /* Mobile hotfix: avoid sticky HUD covering content while scrolling. */
+    position: relative;
+    top: 0;
     border-radius: 24px;
     padding: 10px 10px;
   }
