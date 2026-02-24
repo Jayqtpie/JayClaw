@@ -252,7 +252,7 @@ export function Card({
   return (
     <section
       className={cx(
-        'min-w-0 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)] backdrop-blur-xl',
+        'min-w-0 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]',
         tone === 'raised' && 'shadow-[var(--shadow-lg)]'
       )}
     >

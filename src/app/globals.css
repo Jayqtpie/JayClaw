@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./_perf.css";
 
 /*
   JayClaw — Flagship Control Center theme (VORTEX)
@@ -139,8 +140,8 @@ textarea {
   }
 }
 
-/* Ultra-light noise overlay */
-body::before {
+/* Ultra-light noise overlay (FX mode only) */
+html[data-jc-fx="1"] body::before {
   content: "";
   position: fixed;
   inset: 0;
@@ -152,7 +153,7 @@ body::before {
     repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.30) 0px, rgba(0, 0, 0, 0.30) 1px, transparent 1px, transparent 3px);
 }
 
-.dark body::before {
+html[data-jc-fx="1"].dark body::before {
   opacity: 0.06;
 }
 
@@ -178,6 +179,9 @@ body::before {
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
   transform: translateX(-120%);
+}
+
+html[data-jc-fx="1"] .jc-skeleton::after {
   animation: jc-shimmer 1.12s ease-in-out infinite;
 }
 
@@ -211,6 +215,12 @@ body::before {
 }
 
 .jc-vortex {
+  /* Disabled by default: huge blurred fixed layer is a common source of scroll jank. */
+  display: none;
+}
+
+html[data-jc-fx="1"] .jc-vortex {
+  display: block;
   position: fixed;
   inset: -40vh -30vw;
   pointer-events: none;
@@ -224,25 +234,25 @@ body::before {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .jc-vortex {
+  html[data-jc-fx="1"] .jc-vortex {
     animation: jc-rotate 38s linear infinite;
   }
 }
 
 /* Perf: pause the heavyweight backdrop animation while the user is actively scrolling. */
-.jc-scrolling .jc-vortex {
+html[data-jc-fx="1"].jc-scrolling .jc-vortex {
   animation-play-state: paused;
 }
 
 /* Perf: when a modal is open (command palette), stop the big background work. */
-.jc-modal-open .jc-vortex {
+html[data-jc-fx="1"].jc-modal-open .jc-vortex {
   animation-play-state: paused;
   opacity: 0.5;
   filter: blur(16px) saturate(1.15);
 }
 
 /* Perf: optional global light mode for low-power / remote sessions. */
-.jc-perf .jc-vortex {
+html[data-jc-fx="1"].jc-perf .jc-vortex {
   animation: none !important;
   opacity: 0.45;
   filter: blur(14px) saturate(1.1);
@@ -280,11 +290,16 @@ body::before {
   justify-content: space-between;
   border-radius: 28px;
   border: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface-solid) 55%, transparent);
-  backdrop-filter: blur(16px);
+  background: color-mix(in oklab, var(--surface-solid) 78%, transparent);
+  /* No backdrop-filter by default (expensive on scroll). */
   box-shadow: var(--shadow-lg);
   padding: 12px 12px;
   overflow: hidden;
+}
+
+html[data-jc-fx="1"] .jc-hud {
+  background: color-mix(in oklab, var(--surface-solid) 55%, transparent);
+  backdrop-filter: blur(16px);
 }
 
 .jc-hud::before {
@@ -292,6 +307,10 @@ body::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  opacity: 0;
+}
+
+html[data-jc-fx="1"] .jc-hud::before {
   opacity: 0.9;
   background:
     radial-gradient(900px 240px at 10% 0%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 60%),
@@ -325,7 +344,7 @@ body::before {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .jc-sigil {
+  html[data-jc-fx="1"] .jc-sigil {
     animation: jc-float 6.2s ease-in-out infinite;
   }
 }
@@ -346,13 +365,17 @@ body::before {
 .jc-dock {
   border-radius: 28px;
   border: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface-solid) 50%, transparent);
+  background: color-mix(in oklab, var(--surface-solid) 80%, transparent);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
   padding: 12px;
   height: fit-content;
   position: sticky;
   top: 96px;
+}
+
+html[data-jc-fx="1"] .jc-dock {
+  background: color-mix(in oklab, var(--surface-solid) 50%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 .jc-dock__section + .jc-dock__section {
@@ -385,13 +408,17 @@ body::before {
 
 .jc-stage {
   min-width: 0;
-  /* Provide a continuous glass surface so gaps between cards don't show a hard seam. */
   border-radius: 28px;
   border: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface-solid) 42%, transparent);
+  background: color-mix(in oklab, var(--surface-solid) 86%, transparent);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
   padding: 16px;
+}
+
+html[data-jc-fx="1"] .jc-stage {
+  /* Provide a continuous glass surface so gaps between cards don't show a hard seam. */
+  background: color-mix(in oklab, var(--surface-solid) 42%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 .jc-stage__main {
@@ -404,9 +431,8 @@ body::before {
   margin-top: 18px;
   border-radius: 22px;
   border: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface-solid) 52%, transparent);
+  background: color-mix(in oklab, var(--surface-solid) 86%, transparent);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(16px);
   padding: 12px 14px;
   font-size: 12px;
   color: var(--muted);
@@ -414,6 +440,11 @@ body::before {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: space-between;
+}
+
+html[data-jc-fx="1"] .jc-footer {
+  background: color-mix(in oklab, var(--surface-solid) 52%, transparent);
+  backdrop-filter: blur(16px);
 }
 
 .jc-bottom {
@@ -426,13 +457,17 @@ body::before {
   width: min(720px, calc(100% - 24px));
   border-radius: 22px;
   border: 1px solid var(--border);
-  background: color-mix(in oklab, var(--surface-solid) 55%, transparent);
+  background: color-mix(in oklab, var(--surface-solid) 88%, transparent);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(18px);
   padding: 10px;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+}
+
+html[data-jc-fx="1"] .jc-bottom {
+  background: color-mix(in oklab, var(--surface-solid) 55%, transparent);
+  backdrop-filter: blur(18px);
 }
 
 @media (min-width: 1024px) {

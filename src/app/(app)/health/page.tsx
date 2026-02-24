@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip } from '@/components/ui';
+import { Alert, Button, Card, EmptyState, Skeleton, StatusChip } from '@/components/ui';
+import { RawJsonPanel } from '@/components/RawJsonPanel';
 
 type Healthwall = any;
 
@@ -47,7 +48,9 @@ export default function HealthWallPage() {
         subtitle="Gateway health, token auth, SSL expiry, and recent failures (from local audit log)."
         right={
           <div className="flex items-center gap-2">
-            <StatusChip tone={busy ? 'warn' : gatewayOk ? 'ok' : 'bad'}>{busy ? 'Checking…' : gatewayOk ? 'Online' : 'Offline'}</StatusChip>
+            <StatusChip tone={busy ? 'warn' : gatewayOk ? 'ok' : 'bad'}>
+              {busy ? 'Checking…' : gatewayOk ? 'Online' : 'Offline'}
+            </StatusChip>
             <Button variant="outline" onClick={load} disabled={busy}>
               Refresh
             </Button>
@@ -57,8 +60,8 @@ export default function HealthWallPage() {
         {error ? <Alert variant="error" title="Health Wall error" message={error} /> : null}
 
         {data ? (
-          <div className="mt-2 grid gap-3 md:grid-cols-3">
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm">
+          <div className="mt-2 grid gap-3 md:grid-cols-3 jc-cv">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm jc-contain">
               <div className="text-xs font-semibold tracking-[0.16em] text-[var(--muted-2)]">GATEWAY</div>
               <div className="mt-2">
                 <StatusChip tone={gatewayOk ? 'ok' : 'bad'}>{gatewayOk ? 'Reachable' : 'Unreachable'}</StatusChip>
@@ -72,7 +75,7 @@ export default function HealthWallPage() {
               </div>
             </div>
 
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm jc-contain">
               <div className="text-xs font-semibold tracking-[0.16em] text-[var(--muted-2)]">TOKEN CHECK</div>
               <div className="mt-2">
                 <StatusChip tone={data?.tokenCheck?.ok ? 'ok' : 'bad'}>
@@ -86,7 +89,7 @@ export default function HealthWallPage() {
               )}
             </div>
 
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 shadow-sm jc-contain">
               <div className="text-xs font-semibold tracking-[0.16em] text-[var(--muted-2)]">SSL</div>
               <div className="mt-2">
                 <StatusChip tone={sslTone as any}>
@@ -120,12 +123,16 @@ export default function HealthWallPage() {
         ) : (data?.recentFailures?.length || 0) === 0 ? (
           <EmptyState title="No recent failures" description="Audit trail has no failed actions in the last batch." />
         ) : (
-          <CodeBlock label="FAILURES">{JSON.stringify(data.recentFailures, null, 2)}</CodeBlock>
+          <RawJsonPanel data={data.recentFailures} label="FAILURES" filename="recent-failures.json" defaultOpen={false} maxChars={2200} maxArrayItems={25} />
         )}
       </Card>
 
-      <Card title="Raw health payload" subtitle="Debug payload returned by /api/healthwall.">
-        {!data && busy ? <Skeleton className="h-44 w-full" /> : <CodeBlock label="HEALTHWALL">{data ? JSON.stringify(data, null, 2) : '—'}</CodeBlock>}
+      <Card title="Raw health payload" subtitle="Debug payload returned by /api/healthwall (collapsed by default).">
+        {!data && busy ? (
+          <Skeleton className="h-44 w-full" />
+        ) : (
+          <RawJsonPanel data={data} label="HEALTHWALL" filename="healthwall.json" defaultOpen={false} maxChars={2200} maxArrayItems={25} />
+        )}
       </Card>
     </div>
   );

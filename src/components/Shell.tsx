@@ -3,11 +3,28 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Button, RailItem, StatusChip } from '@/components/ui';
+import dynamic from 'next/dynamic';
 import ThemeToggle from '@/components/ThemeToggle';
-import CommandPalette, { type CommandItem } from '@/components/CommandPalette';
+import { type CommandItem } from '@/components/CommandPalette';
+
+const CommandPalette = dynamic(() => import('@/components/CommandPalette'), {
+  ssr: false,
+  loading: () => (
+    <button
+      type="button"
+      className="inline-flex min-w-[240px] items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_70%,transparent)] px-3 py-2 text-left text-sm text-[var(--muted)] shadow-sm"
+      aria-label="Command palette loading"
+      disabled
+    >
+      <span className="truncate">Search commands…</span>
+      <span className="text-xs">…</span>
+    </button>
+  ),
+});
 import { useOpsStatus } from '@/lib/useOpsStatus';
 import { useRouter } from 'next/navigation';
 import { SafeModeProvider } from '@/components/SafeModeClient';
+import { LowPowerModeProvider } from '@/components/LowPowerModeClient';
 import TopSafetyControls from '@/components/TopSafetyControls';
 
 function Icon({ name }: { name: 'chat' | 'console' | 'agents' | 'ops' | 'sched' | 'mem' | 'spark' | 'search' | 'health' | 'audit' | 'quick' }) {
@@ -213,6 +230,17 @@ export default function Shell({ children }: { children: ReactNode }) {
         shortcut: 'T',
       },
       {
+        id: 'act-low-power',
+        label: 'Toggle low power mode',
+        hint: 'Reduce visual FX for smoother scrolling',
+        group: 'Actions',
+        action: () => {
+          window.dispatchEvent(new Event('jc:toggle-low-power'));
+        },
+        keywords: ['perf', 'performance', 'jank', 'effects'],
+        shortcut: 'P',
+      },
+      {
         id: 'act-refresh-status',
         label: 'Refresh gateway status',
         hint: 'Re-check session_status',
@@ -232,6 +260,18 @@ export default function Shell({ children }: { children: ReactNode }) {
     [logout, ops.refresh]
   );
 
+  const fxEnabled = process.env.NEXT_PUBLIC_JC_FX === '1';
+
+  useEffect(() => {
+    // FX mode is opt-in (NEXT_PUBLIC_JC_FX=1). Default: off for smooth scroll + route transitions.
+    const root = document.documentElement;
+    if (fxEnabled) root.dataset.jcFx = '1';
+    else delete root.dataset.jcFx;
+    return () => {
+      delete root.dataset.jcFx;
+    };
+  }, [fxEnabled]);
+
   useEffect(() => {
     // Optional: force a lighter visual mode for low-power devices / remote sessions.
     // Set NEXT_PUBLIC_JC_PERF_MODE=1
@@ -243,7 +283,9 @@ export default function Shell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Perf: pause heavy backdrop motion while scrolling (especially on low/medium devices).
+    if (!fxEnabled) return;
+
+    // Perf (FX-only): pause heavy backdrop motion while scrolling (especially on low/medium devices).
     let raf = 0;
     let t: any = null;
     const root = document.documentElement;
@@ -265,13 +307,14 @@ export default function Shell({ children }: { children: ReactNode }) {
       if (t) window.clearTimeout(t);
       root.classList.remove('jc-scrolling');
     };
-  }, []);
+  }, [fxEnabled]);
 
   return (
     <SafeModeProvider>
-      <div className="min-h-dvh text-[var(--fg)]">
-        {/* Full-bleed flagship backdrop */}
-        <div className="jc-vortex" aria-hidden="true" />
+      <LowPowerModeProvider>
+        <div className="min-h-dvh text-[var(--fg)]">
+        {/* Full-bleed flagship backdrop (FX mode only) */}
+        {fxEnabled ? <div className="jc-vortex" aria-hidden="true" /> : null}
 
         <div className="relative mx-auto max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
           {/* HUD bar */}
@@ -372,6 +415,7 @@ export default function Shell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </div>
+      </LowPowerModeProvider>
     </SafeModeProvider>
   );
 }

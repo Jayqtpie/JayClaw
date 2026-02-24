@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { Button, StatusChip } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
+import { useLowPowerMode } from '@/components/LowPowerModeClient';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function TopSafetyControls() {
   const { enabled, loading, setEnabled } = useSafeMode();
+  const lowPower = useLowPowerMode();
   const [cooperOpen, setCooperOpen] = useState(false);
   const [cooperBusy, setCooperBusy] = useState(false);
   const [cooperResult, setCooperResult] = useState<string | null>(null);
@@ -40,6 +42,15 @@ export default function TopSafetyControls() {
         </StatusChip>
         <Button variant={enabled ? 'outline' : 'outline'} disabled={loading} onClick={toggle}>
           {loading ? '…' : enabled ? 'Disable' : 'Enable'}
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <StatusChip tone={lowPower.enabled ? 'idle' : 'info'} title="Low Power reduces visual FX to avoid scroll jank; persisted locally.">
+          Low Power: {lowPower.enabled ? 'ON' : 'OFF'}
+        </StatusChip>
+        <Button variant="outline" disabled={lowPower.loading} onClick={() => void lowPower.toggle()}>
+          {lowPower.loading ? '…' : lowPower.enabled ? 'Disable' : 'Enable'}
         </Button>
       </div>
 

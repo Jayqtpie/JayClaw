@@ -1,0 +1,16 @@
+/* Perf utility classes (imported by globals.css) */
+
+/*
+  content-visibility skips rendering offscreen content (big win for large panels/lists).
+  contain-intrinsic-size avoids layout shifts while content is skipped.
+*/
+.jc-cv {
+  content-visibility: auto;
+  contain: layout paint style;
+  contain-intrinsic-size: 1px 560px;
+}
+
+/* Treat large text panels as their own paint/layout containment boundary. */
+.jc-contain {
+  contain: layout paint style;
+}

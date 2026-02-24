@@ -21,6 +21,15 @@ export default function OpsPage() {
     return bits.length ? bits.join(' • ') : null;
   }, [status]);
 
+  const fxMode = process.env.NEXT_PUBLIC_JC_FX === '1';
+  const [docFxMode, setDocFxMode] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Reflect the actual DOM state (in case something toggles it at runtime).
+    const root = document.documentElement;
+    setDocFxMode(root.dataset.jcFx === '1');
+  }, []);
+
   async function load() {
     setBusy(true);
     setError(null);
@@ -64,6 +73,14 @@ export default function OpsPage() {
         subtitle="Gateway status + restart. All calls are server-side (token never hits the browser)."
         right={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="mr-1 hidden items-center gap-2 rounded-xl border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_88%,transparent)] px-2 py-1 text-[11px] text-[var(--muted)] sm:flex">
+              <span className="font-mono">FX mode:</span>
+              <span className="font-semibold text-[var(--fg)]">{(docFxMode ?? fxMode) ? 'on' : 'off'}</span>
+              <span className="mx-1 opacity-50">•</span>
+              <span className="font-mono">Perf mode:</span>
+              <span className="font-semibold text-[var(--fg)]">optimized</span>
+            </div>
+
             <StatusChip tone={busy ? 'warn' : error ? 'bad' : status ? 'ok' : 'idle'}>
               {busy ? 'Checking…' : error ? 'Degraded' : status ? 'Operational' : 'Idle'}
             </StatusChip>
@@ -105,21 +122,12 @@ export default function OpsPage() {
 
       <ConfirmDialog
         open={restartOpen}
-        title="Restart gateway?"
-        description="High-impact operation. Many deployments do not expose restart via API (you may see 501)."
-        confirmText={busy ? 'Restarting…' : 'Restart'}
-        danger
-        onClose={() => setRestartOpen(false)}
-        onConfirm={restart}
-      />
-      <ConfirmDialog
-        open={restartOpen}
         title="Restart OpenClaw Gateway?"
-        description="This may interrupt in-flight tasks."
+        description="High-impact operation. This may interrupt in-flight tasks. Some deployments may return 501."
         confirmText={busy ? 'Restarting…' : 'Restart'}
         danger
-        onConfirm={restart}
         onClose={() => setRestartOpen(false)}
+        onConfirm={restart}
       />
     </div>
   );
