@@ -297,19 +297,32 @@ export function RailItem({
 }) {
   const pathname = usePathname();
   const active = pathname === href;
+
   return (
     <Link
       href={href}
       className={cx(
-        'group flex items-center justify-center rounded-[18px] p-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+        'group relative flex flex-col items-center justify-center gap-1 rounded-[22px] border px-3 py-3 text-center transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
         active
-          ? 'bg-[linear-gradient(180deg,var(--primary)_0%,var(--primary-2)_100%)] text-[var(--primary-fg)] shadow-[var(--shadow-sm)]'
-          : 'bg-transparent text-[var(--muted)] hover:bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)]'
+          ? 'border-[color-mix(in_oklab,var(--primary)_40%,var(--border))] bg-[linear-gradient(135deg,color-mix(in_oklab,var(--primary)_40%,var(--surface-solid)),color-mix(in_oklab,var(--primary-3)_28%,var(--surface-solid)))] text-[var(--fg)] shadow-[var(--shadow)]'
+          : 'border-[color-mix(in_oklab,var(--border)_75%,transparent)] bg-[color-mix(in_oklab,var(--surface-solid)_40%,transparent)] text-[var(--muted)] shadow-sm hover:-translate-y-[1px] hover:bg-[color-mix(in_oklab,var(--surface-solid)_56%,transparent)]'
       )}
       aria-label={label}
       title={label}
     >
-      <span className={cx('h-5 w-5 transition', active ? '' : 'group-hover:scale-[1.03]')}>{icon}</span>
+      <span className={cx('h-5 w-5 transition', active ? '' : 'group-hover:scale-[1.06]')}>{icon}</span>
+      <span className={cx('text-[11px] font-semibold tracking-[-0.01em]', active ? 'text-[var(--fg)]' : 'text-[var(--muted)]')}>
+        {label}
+      </span>
+      <span
+        aria-hidden="true"
+        className={cx(
+          'pointer-events-none absolute -inset-px rounded-[22px] opacity-0 blur-[10px] transition-opacity duration-300',
+          active
+            ? 'opacity-70 bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--primary)_60%,transparent),transparent_58%),radial-gradient(circle_at_70%_40%,color-mix(in_oklab,var(--primary-3)_50%,transparent),transparent_58%)]'
+            : 'group-hover:opacity-50 bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--primary)_45%,transparent),transparent_58%),radial-gradient(circle_at_70%_40%,color-mix(in_oklab,var(--primary-3)_40%,transparent),transparent_58%)]'
+        )}
+      />
     </Link>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Button, NavPill, RailItem, StatusChip } from '@/components/ui';
+import { Button, RailItem, StatusChip } from '@/components/ui';
 import ThemeToggle from '@/components/ThemeToggle';
 import CommandPalette, { type CommandItem } from '@/components/CommandPalette';
 import { useOpsStatus } from '@/lib/useOpsStatus';
@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { SafeModeProvider } from '@/components/SafeModeClient';
 import TopSafetyControls from '@/components/TopSafetyControls';
 
-function Icon({ name }: { name: 'console' | 'agents' | 'ops' | 'sched' | 'mem' | 'spark' | 'search' | 'health' | 'audit' | 'quick' }) {
+function Icon({ name }: { name: 'chat' | 'console' | 'agents' | 'ops' | 'sched' | 'mem' | 'spark' | 'search' | 'health' | 'audit' | 'quick' }) {
   // Tiny inline SVGs to keep deps minimal
   if (name === 'search')
     return (
@@ -93,6 +93,23 @@ function Icon({ name }: { name: 'console' | 'agents' | 'ops' | 'sched' | 'mem' |
       </svg>
     );
 
+  if (name === 'chat')
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M5 6.5A4.5 4.5 0 0 1 9.5 2h5A4.5 4.5 0 0 1 19 6.5V12a4.5 4.5 0 0 1-4.5 4.5H11l-4.3 3a.75.75 0 0 1-1.2-.61V16.5A4.5 4.5 0 0 1 5 12V6.5Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8 7.75h8M8 11h6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
   if (name === 'console')
     return (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -169,20 +186,17 @@ export default function Shell({ children }: { children: ReactNode }) {
   }
 
   const statusTone = ops.loading ? 'idle' : ops.data?.ok ? 'ok' : 'bad';
-  const statusText = ops.loading
-    ? 'Gateway: checking…'
-    : ops.data?.ok
-      ? 'Gateway: online'
-      : `Gateway: offline`;
+  const statusText = ops.loading ? 'LINKING…' : ops.data?.ok ? 'ONLINE' : 'OFFLINE';
 
   const paletteItems: CommandItem[] = [
-    { id: 'nav-console', label: 'Console', hint: 'Send a message to the main session', group: 'Navigate', href: '/console', keywords: ['message', 'send'] },
+    { id: 'nav-chat', label: 'Chat', hint: 'Native dashboard chat (assistant replies)', group: 'Navigate', href: '/chat', keywords: ['assistant', 'talk'] },
+    { id: 'nav-console', label: 'Console', hint: 'Message routing / outbound sends', group: 'Navigate', href: '/console', keywords: ['message', 'send'] },
     { id: 'nav-subagents', label: 'Subagents', hint: 'List / spawn / steer', group: 'Navigate', href: '/subagents', keywords: ['agents', 'spawn'] },
     { id: 'nav-ops', label: 'Ops', hint: 'Status + restart + diagnostics', group: 'Navigate', href: '/ops', keywords: ['status', 'restart'] },
     { id: 'nav-scheduler', label: 'Scheduler', hint: 'List + run scheduled tasks', group: 'Navigate', href: '/scheduler', keywords: ['jobs', 'cron'] },
-    { id: 'nav-memory', label: 'Memory', hint: 'Search + fetch memories', group: 'Navigate', href: '/memory', keywords: ['search', 'notes'] },
-    { id: 'nav-health', label: 'Health Wall', hint: 'Gateway health + token + SSL + recent failures', group: 'Navigate', href: '/health', keywords: ['health', 'ssl', 'diag'] },
+    { id: 'nav-health', label: 'Health Wall', hint: 'Gateway health + token + SSL', group: 'Navigate', href: '/health', keywords: ['health', 'ssl', 'diag'] },
     { id: 'nav-audit', label: 'Audit Trail', hint: 'Recent actions + outcomes', group: 'Navigate', href: '/audit', keywords: ['audit', 'logs'] },
+    { id: 'nav-memory', label: 'Memory', hint: 'Search + fetch memories', group: 'Navigate', href: '/memory', keywords: ['search', 'notes'] },
     { id: 'nav-quick', label: 'Quick Actions', hint: 'Common operator flows', group: 'Navigate', href: '/quick', keywords: ['templates', 'macros'] },
 
     {
@@ -217,42 +231,30 @@ export default function Shell({ children }: { children: ReactNode }) {
   return (
     <SafeModeProvider>
       <div className="min-h-dvh text-[var(--fg)]">
-      <div className="mx-auto max-w-[1280px] px-4 py-6">
-        {/* Top bar */}
-        <header className="relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow-lg)] backdrop-blur-xl">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-70"
-            aria-hidden="true"
-            style={{
-              background:
-                'radial-gradient(900px 240px at 16% 0%, color-mix(in oklab, var(--primary) 26%, transparent), transparent 60%), radial-gradient(780px 240px at 86% 10%, color-mix(in oklab, var(--primary-3) 22%, transparent), transparent 60%)',
-            }}
-          />
+        {/* Full-bleed flagship backdrop */}
+        <div className="jc-vortex" aria-hidden="true" />
 
-          <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,var(--primary)_0%,var(--primary-3)_100%)] text-[var(--primary-fg)] shadow-sm">
-                  <span className="h-5 w-5">
-                    <Icon name="spark" />
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold tracking-[0.26em] text-[var(--muted-2)]">JAYCLAW CONTROL CENTER</div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                    <div className="text-lg font-semibold tracking-[-0.02em]">Gateway Command Deck</div>
-                    <StatusChip tone={statusTone} title={ops.data?.error ?? undefined}>
-                      {statusText}
-                    </StatusChip>
-                  </div>
+        <div className="relative mx-auto max-w-[1440px] px-4 py-5 md:px-6 md:py-6">
+          {/* HUD bar */}
+          <header className="jc-hud">
+            <div className="jc-hud__left">
+              <div className="jc-sigil" aria-hidden="true">
+                <span className="h-5 w-5">
+                  <Icon name="spark" />
+                </span>
+              </div>
+              <div className="min-w-0">
+                <div className="jc-eyebrow">JAYCLAW • FLAGSHIP DECK</div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="jc-title">CONTROL CENTER</div>
+                  <StatusChip tone={statusTone} title={ops.data?.error ?? undefined}>
+                    GATEWAY {statusText}
+                  </StatusChip>
                 </div>
               </div>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                Premium operator UI. All browser actions call Next.js API routes only; gateway token stays server-side.
-              </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="jc-hud__right">
               <TopSafetyControls />
               <CommandPalette items={paletteItems} />
               <ThemeToggle />
@@ -260,59 +262,76 @@ export default function Shell({ children }: { children: ReactNode }) {
                 Logout
               </Button>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Workspace layout */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[96px_minmax(0,1fr)]">
-          {/* Rail */}
-          <aside className="rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[var(--shadow)] backdrop-blur-xl lg:sticky lg:top-6 lg:h-fit">
-            <div className="flex flex-row gap-2 overflow-auto lg:flex-col lg:overflow-visible">
-              <RailItem href="/console" label="Console" icon={<Icon name="console" />} />
-              <RailItem href="/subagents" label="Subagents" icon={<Icon name="agents" />} />
-              <RailItem href="/ops" label="Ops" icon={<Icon name="ops" />} />
-              <RailItem href="/scheduler" label="Scheduler" icon={<Icon name="sched" />} />
-              <RailItem href="/memory" label="Memory" icon={<Icon name="mem" />} />
-              <RailItem href="/health" label="Health" icon={<Icon name="health" />} />
-              <RailItem href="/audit" label="Audit" icon={<Icon name="audit" />} />
-              <RailItem href="/quick" label="Quick" icon={<Icon name="quick" />} />
-            </div>
-
-            <div className="mt-2 hidden rounded-[22px] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-3 text-xs text-[var(--muted)] shadow-sm lg:block">
-              <div className="flex items-center gap-2">
-                <span className="h-4 w-4 text-[var(--muted-2)]">
-                  <Icon name="search" />
-                </span>
-                <span className="font-semibold">Tip</span>
+          {/* Shell grid: Dock + Stage */}
+          <div className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+            {/* Dock */}
+            <aside className="jc-dock" aria-label="Primary">
+              <div className="jc-dock__section">
+                <div className="jc-dock__label">LIVE</div>
+                <div className="jc-dock__grid">
+                  <RailItem href="/chat" label="Chat" icon={<Icon name="chat" />} />
+                  <RailItem href="/console" label="Console" icon={<Icon name="console" />} />
+                </div>
               </div>
-              <div className="mt-1">Press Ctrl/Cmd+K to jump pages & run actions.</div>
-            </div>
-          </aside>
 
-          <div className="space-y-6">
-            {/* Secondary nav (pills) */}
-            <nav className="flex flex-wrap gap-2" aria-label="Workspace">
-              <NavPill href="/console">Console</NavPill>
-              <NavPill href="/subagents">Subagents</NavPill>
-              <NavPill href="/ops">Ops</NavPill>
-              <NavPill href="/scheduler">Scheduler</NavPill>
-              <NavPill href="/memory">Memory</NavPill>
-              <NavPill href="/health">Health</NavPill>
-              <NavPill href="/audit">Audit</NavPill>
-              <NavPill href="/quick">Quick</NavPill>
-            </nav>
-
-            <main className="space-y-6">{children}</main>
-
-            <footer className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 text-xs text-[var(--muted)] shadow-[var(--shadow)] backdrop-blur-xl">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>Gateway token stays server-side. Browser calls Next.js API routes only.</span>
-                <span className="text-[var(--muted-2)]">JayClaw v0.1</span>
+              <div className="jc-dock__section">
+                <div className="jc-dock__label">ORCHESTRATE</div>
+                <div className="jc-dock__grid">
+                  <RailItem href="/subagents" label="Subagents" icon={<Icon name="agents" />} />
+                  <RailItem href="/scheduler" label="Scheduler" icon={<Icon name="sched" />} />
+                  <RailItem href="/quick" label="Quick" icon={<Icon name="quick" />} />
+                </div>
               </div>
-            </footer>
+
+              <div className="jc-dock__section">
+                <div className="jc-dock__label">OBSERVE</div>
+                <div className="jc-dock__grid">
+                  <RailItem href="/ops" label="Ops" icon={<Icon name="ops" />} />
+                  <RailItem href="/health" label="Health" icon={<Icon name="health" />} />
+                  <RailItem href="/audit" label="Audit" icon={<Icon name="audit" />} />
+                </div>
+              </div>
+
+              <div className="jc-dock__section">
+                <div className="jc-dock__label">KNOW</div>
+                <div className="jc-dock__grid">
+                  <RailItem href="/memory" label="Memory" icon={<Icon name="mem" />} />
+                </div>
+              </div>
+
+              <div className="jc-dock__tip">
+                <div className="flex items-center gap-2">
+                  <span className="h-4 w-4 text-[var(--muted-2)]">
+                    <Icon name="search" />
+                  </span>
+                  <span className="font-semibold">Command</span>
+                </div>
+                <div className="mt-1">Ctrl/Cmd+K → jump modules & execute actions.</div>
+              </div>
+            </aside>
+
+            {/* Stage */}
+            <div className="jc-stage">
+              <main className="jc-stage__main">{children}</main>
+
+              <footer className="jc-footer">
+                <span>All browser actions hit Next.js API routes only. Gateway token stays server-side.</span>
+                <span className="text-[var(--muted-2)]">JayClaw Flagship</span>
+              </footer>
+            </div>
           </div>
+
+          {/* Mobile bottom nav */}
+          <nav className="jc-bottom" aria-label="Bottom navigation">
+            <RailItem href="/chat" label="Chat" icon={<Icon name="chat" />} />
+            <RailItem href="/console" label="Console" icon={<Icon name="console" />} />
+            <RailItem href="/subagents" label="Subagents" icon={<Icon name="agents" />} />
+            <RailItem href="/ops" label="Ops" icon={<Icon name="ops" />} />
+            <RailItem href="/memory" label="Memory" icon={<Icon name="mem" />} />
+          </nav>
         </div>
-      </div>
       </div>
     </SafeModeProvider>
   );

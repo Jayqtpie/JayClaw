@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip, TextInput } from '@/components/ui';
 
 type FsHit = { id: string; file: string; line: number; text: string };
@@ -10,6 +12,9 @@ function cx(...parts: Array<string | false | null | undefined>) {
 }
 
 export default function MemoryPage() {
+  const searchParams = useSearchParams();
+  const seededOnce = useRef(false);
+
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +30,45 @@ export default function MemoryPage() {
     if (hits.length) return 'filesystem';
     return 'idle';
   }, [gatewayResult, hits.length]);
+
+  useEffect(() => {
+    if (seededOnce.current) return;
+    const seeded = (searchParams.get('q') || '').trim();
+    if (!seeded) return;
+    seededOnce.current = true;
+    setQ(seeded);
+    // Auto-run the search with the seeded query.
+    setTimeout(() => {
+      void searchSeeded(seeded);
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function searchSeeded(seed: string) {
+    const query = seed.trim();
+    if (!query) return;
+    setBusy(true);
+    setError(null);
+    setSelectedId(null);
+    setSnippet(null);
+    setHits([]);
+    setGatewayResult(null);
+
+    try {
+      const res = await fetch(`/api/memory/search?q=${encodeURIComponent(query)}`, { cache: 'no-store' });
+      const j = (await res.json().catch(() => null)) as any;
+      if (!res.ok) throw new Error(j?.error || 'Search failed');
+      if (j.source === 'filesystem') {
+        setHits(j.hits || []);
+      } else {
+        setGatewayResult(j.result);
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Search failed');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function search() {
     const query = q.trim();
@@ -75,9 +119,17 @@ export default function MemoryPage() {
         title="Memory"
         subtitle="Search memory (gateway-first; filesystem fallback if configured)."
         right={
-          <StatusChip tone={busy ? 'warn' : mode === 'gateway' ? 'info' : mode === 'filesystem' ? 'ok' : 'idle'}>
-            {busy ? 'Searching…' : mode === 'gateway' ? 'Gateway' : mode === 'filesystem' ? 'Filesystem' : 'Idle'}
-          </StatusChip>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/memory/list"
+              className="inline-flex h-8 items-center justify-center rounded-full border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_65%,transparent)] px-3 text-xs font-semibold text-[var(--fg)] shadow-sm transition hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            >
+              Browse
+            </Link>
+            <StatusChip tone={busy ? 'warn' : mode === 'gateway' ? 'info' : mode === 'filesystem' ? 'ok' : 'idle'}>
+              {busy ? 'Searching…' : mode === 'gateway' ? 'Gateway' : mode === 'filesystem' ? 'Filesystem' : 'Idle'}
+            </StatusChip>
+          </div>
         }
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
