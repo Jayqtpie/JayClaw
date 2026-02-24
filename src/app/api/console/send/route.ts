@@ -45,6 +45,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, result });
   } catch (e: any) {
+    // Debug-safe log: do not print tokens or full message.
+    console.error('[console.send] failed', {
+      status: e?.status || 500,
+      code: e?.code,
+      message: e?.message,
+      details: e?.details,
+      messageLen: message.length,
+    });
+
     await appendAudit({
       action: 'console.send',
       summary: message.length > 180 ? message.slice(0, 180) + '…' : message,
@@ -53,7 +62,13 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(
-      { ok: false, error: e?.code || e?.message || 'Failed to send', details: e?.details },
+      {
+        ok: false,
+        error: e?.code || e?.message || 'Failed to send',
+        // Keep details actionable but avoid secret leakage; openclaw.ts already avoids tokens.
+        details: e?.details,
+        status: e?.status || 500,
+      },
       { status: e?.status || 500 }
     );
   }

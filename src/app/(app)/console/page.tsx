@@ -28,12 +28,19 @@ export default function ConsolePage() {
       });
       const j = (await res.json().catch(() => null)) as any;
       if (!res.ok) {
-        setError(j?.error || 'Send failed');
+        // Surface anything the server gave us, and keep it visible in Last result.
+        setResult(j);
+        const msgParts: string[] = [];
+        if (j?.error) msgParts.push(String(j.error));
+        if (j?.details?.hint) msgParts.push(String(j.details.hint));
+        if (!msgParts.length) msgParts.push(`Send failed (HTTP ${res.status})`);
+        setError(msgParts.join('\n'));
         return;
       }
       setResult(j?.result ?? j);
       setMessage('');
     } catch (e: any) {
+      setResult({ ok: false, error: e?.message || 'Send failed' });
       setError(e?.message || 'Send failed');
     } finally {
       setBusy(false);

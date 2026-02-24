@@ -126,14 +126,116 @@ export type ToolInvokeRequest = {
   params?: Record<string, unknown>;
 };
 
+function safeToolDebug(req: ToolInvokeRequest) {
+  return {
+    namespace: req.namespace,
+    action: req.action,
+    // Only keys (no values) to avoid leaking content.
+    paramsKeys: req.params ? Object.keys(req.params) : [],
+  };
+}
+
 // OpenClaw gateway tool invocation endpoint.
+// Some deployments differ in body shape or endpoint path; we try a small set of compatible fallbacks.
 export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
-  return gatewayFetch<T>('/tools/invoke', {
-    method: 'POST',
-    body: JSON.stringify({
+  const attempts: Array<{ path: string; body: any }> = [];
+
+  // Most common (current JayClaw assumption)
+  attempts.push({
+    path: '/tools/invoke',
+    body: {
       tool: req.namespace,
       ...(req.action ? { action: req.action } : {}),
       ...(req.params ? { params: req.params } : {}),
-    }),
+    },
   });
+
+  // Alternate: "namespace" instead of "tool"
+  attempts.push({
+    path: '/tools/invoke',
+    body: {
+      namespace: req.namespace,
+      ...(req.action ? { action: req.action } : {}),
+      ...(req.params ? { params: req.params } : {}),
+    },
+  });
+
+  // Alternate: action nested inside params
+  if (req.action) {
+    attempts.push({
+      path: '/tools/invoke',
+      body: {
+        tool: req.namespace,
+        params: {
+          action: req.action,
+          ...(req.params || {}),
+        },
+      },
+    });
+  }
+
+  // Alternate: tool name includes action (e.g. "message.send")
+  if (req.action) {
+    attempts.push({
+      path: '/tools/invoke',
+      body: {
+        tool: `${req.namespace}.${req.action}`,
+        ...(req.params ? { params: req.params } : {}),
+      },
+    });
+  }
+
+  // Endpoint fallback some older gateways used
+  attempts.push({
+    path: '/invoke',
+    body: {
+      tool: req.namespace,
+      ...(req.action ? { action: req.action } : {}),
+      ...(req.params ? { params: req.params } : {}),
+    },
+  });
+
+  let lastErr: any = null;
+  for (let i = 0; i < attempts.length; i++) {
+    const a = attempts[i]!;
+
+    // Only retry on likely compatibility issues.
+    // If auth/network fails, fail fast.
+    if (lastErr) {
+      const status = lastErr?.status as number | undefined;
+      const code = lastErr?.code as string | undefined;
+      const retryable =
+        status === 404 ||
+        status === 400 ||
+        code === 'gateway_not_found' ||
+        code === 'gateway_error';
+
+      const fatal = code === 'gateway_unauthorized' || code === 'gateway_unreachable' || status === 401 || status === 403;
+      if (fatal || !retryable) break;
+    }
+
+    try {
+      return await gatewayFetch<T>(a.path, {
+        method: 'POST',
+        body: JSON.stringify(a.body),
+      });
+    } catch (e: any) {
+      lastErr = e;
+    }
+  }
+
+  const err: GatewayError = {
+    status: lastErr?.status || 500,
+    code: lastErr?.code || 'gateway_error',
+    message: lastErr?.message || 'Gateway tool invocation failed',
+    details: {
+      ...(lastErr?.details ? { upstream: lastErr.details } : null),
+      hint:
+        'Tool invoke failed. This may be an API-shape mismatch between JayClaw and your Gateway deployment. ' +
+        'Update src/lib/openclaw.ts invokeTool fallbacks to match your gateway.',
+      debug: safeToolDebug(req),
+      tried: attempts.map((a) => ({ path: a.path, bodyKeys: Object.keys(a.body || {}) })),
+    },
+  };
+  throw err;
 }
