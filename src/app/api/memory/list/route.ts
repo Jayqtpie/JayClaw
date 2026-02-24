@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { normalizeDateParam, resolveMemoryFsConfig } from '@/lib/memoryFs';
 
 export type MemoryDocType = 'root' | 'daily' | 'unknown';
 
@@ -9,7 +10,7 @@ export type MemoryListItem = {
   source: 'MEMORY.md' | 'memory';
   fileName: string;
   type: MemoryDocType;
-  date?: string; // YYYY-MM-DD if inferred
+  date?: string; // inferred as YYYY-MM-DD (from filename)
   project?: string | null;
   mtimeMs?: number;
   size?: number;
@@ -70,24 +71,20 @@ function itemTypeFromId(id: string): MemoryDocType {
   return 'unknown';
 }
 
-async function buildList(): Promise<MemoryListItem[]> {
-  const memoryDir = process.env.OPENCLAW_MEMORY_DIR;
-  const rootOverride = process.env.OPENCLAW_MEMORY_ROOT_FILE;
-
+async function buildList(): Promise<{
+  items: MemoryListItem[];
+  warnings: string[];
+  resolved: { rootFile: string | null; dailyDir: string | null };
+}> {
+  const cfg = await resolveMemoryFsConfig();
   const items: MemoryListItem[] = [];
 
   // Root MEMORY.md
-  const rootCandidate = rootOverride
-    ? path.resolve(rootOverride)
-    : memoryDir
-      ? path.resolve(memoryDir, '..', 'MEMORY.md')
-      : null;
-
-  if (rootCandidate) {
+  if (cfg.rootFile) {
     try {
-      const st = await fs.stat(rootCandidate);
+      const st = await fs.stat(cfg.rootFile);
       if (st.isFile()) {
-        const head = await readHead(rootCandidate);
+        const head = await readHead(cfg.rootFile);
         items.push({
           id: 'MEMORY.md',
           source: 'MEMORY.md',
@@ -102,17 +99,16 @@ async function buildList(): Promise<MemoryListItem[]> {
         });
       }
     } catch {
-      // ignore missing
+      // ignore unreadable
     }
   }
 
   // memory/*.md
-  if (memoryDir) {
-    const dir = path.resolve(memoryDir);
-    const files = await fs.readdir(dir).catch(() => [] as string[]);
+  if (cfg.dailyDir) {
+    const files = await fs.readdir(cfg.dailyDir).catch(() => [] as string[]);
     for (const f of files) {
       if (!f.endsWith('.md')) continue;
-      const full = path.join(dir, f);
+      const full = path.join(cfg.dailyDir, f);
       try {
         const st = await fs.stat(full);
         if (!st.isFile()) continue;
@@ -146,7 +142,7 @@ async function buildList(): Promise<MemoryListItem[]> {
     return bm - am;
   });
 
-  return items;
+  return { items, warnings: cfg.warnings, resolved: { rootFile: cfg.rootFile, dailyDir: cfg.dailyDir } };
 }
 
 export async function GET(req: Request) {
@@ -155,12 +151,13 @@ export async function GET(req: Request) {
   const pageSize = clamp(Number(searchParams.get('pageSize') || 25), 5, 100);
 
   const source = (searchParams.get('source') || '').trim(); // MEMORY.md|memory|""
-  const type = (searchParams.get('type') || '').trim(); // root|daily|unknown
+  const type = (searchParams.get('type') || '').trim(); // root|daily|unknown|""
   const project = (searchParams.get('project') || '').trim();
-  const date = (searchParams.get('date') || '').trim(); // YYYY-MM-DD exact
+  const date = normalizeDateParam((searchParams.get('date') || '').trim()); // YYYY-MM-DD exact (accepts dd/mm/yyyy)
 
   try {
-    let all = await buildList();
+    const built = await buildList();
+    let all = built.items;
 
     if (source === 'MEMORY.md' || source === 'memory') {
       all = all.filter((i) => i.source === source);
@@ -196,6 +193,8 @@ export async function GET(req: Request) {
       total,
       projects,
       items: pageItems,
+      warnings: built.warnings,
+      resolved: built.resolved,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'list_failed' }, { status: 500 });

@@ -26,6 +26,8 @@ type MemoryListResponse = {
   total: number;
   projects: string[];
   items: MemoryListItem[];
+  warnings?: string[];
+  resolved?: { rootFile: string | null; dailyDir: string | null };
 };
 
 function cx(...parts: Array<string | false | null | undefined>) {
@@ -55,6 +57,12 @@ function MiniSelect({
       </select>
     </label>
   );
+}
+
+function formatUkDate(yyyyMmDd: string): string {
+  const m = (yyyyMmDd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return yyyyMmDd;
+  return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
 function SnippetDialog({
@@ -271,14 +279,14 @@ export default function MemoryListPage() {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-semibold tracking-[0.14em] text-[var(--muted-2)]">Date (YYYY-MM-DD)</span>
+            <span className="text-xs font-semibold tracking-[0.14em] text-[var(--muted-2)]">Date (dd/mm/yyyy)</span>
             <TextInput
               value={date}
               onChange={(v) => {
                 setPage(1);
                 setDate(v);
               }}
-              placeholder="2026-02-24"
+              placeholder="24/02/2026"
             />
           </label>
         </div>
@@ -311,7 +319,23 @@ export default function MemoryListPage() {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
+          {data?.warnings?.length ? (
+            <Alert
+              variant="warning"
+              title="Memory paths need attention"
+              message={
+                <div className="space-y-1">
+                  {data.warnings.map((w, idx) => (
+                    <div key={idx}>{w}</div>
+                  ))}
+                  <div className="mt-2 text-xs">
+                    Tip: ensure the server can read the memory files. Expected: <span className="font-mono">MEMORY.md</span> and <span className="font-mono">memory/*.md</span>.
+                  </div>
+                </div>
+              }
+            />
+          ) : null}
           {error ? <Alert variant="error" title="Memory list failed" message={error} /> : null}
         </div>
       </Card>
@@ -370,7 +394,7 @@ export default function MemoryListPage() {
                             <div className="mt-1 flex flex-wrap items-center gap-2">
                               <span className="text-xs text-[var(--muted)] font-mono">{it.id}</span>
                               {it.type ? <StatusChip tone="idle">{it.type}</StatusChip> : null}
-                              {it.date ? <StatusChip tone="info">{it.date}</StatusChip> : null}
+                              {it.date ? <StatusChip tone="info">{formatUkDate(it.date)}</StatusChip> : null}
                               {it.project ? <StatusChip tone="ok">{it.project}</StatusChip> : null}
                             </div>
                           </div>

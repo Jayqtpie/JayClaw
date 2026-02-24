@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { invokeTool } from '@/lib/openclaw';
 import fs from 'fs/promises';
 import path from 'path';
+import { resolveMemoryFsConfig } from '@/lib/memoryFs';
 
 type SearchHit = { id: string; file: string; line: number; text: string };
 
 async function fallbackSearch(q: string): Promise<SearchHit[]> {
-  const dir = process.env.OPENCLAW_MEMORY_DIR;
+  const cfg = await resolveMemoryFsConfig();
+  const dir = cfg.dailyDir;
   if (!dir) return [];
   const files = await fs.readdir(dir).catch(() => [] as string[]);
   const hits: SearchHit[] = [];

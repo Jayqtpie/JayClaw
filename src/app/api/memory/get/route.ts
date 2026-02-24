@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { invokeTool } from '@/lib/openclaw';
 import fs from 'fs/promises';
 import path from 'path';
+import { resolveMemoryFsConfig } from '@/lib/memoryFs';
 
 async function fallbackGet(id: string) {
-  const dir = process.env.OPENCLAW_MEMORY_DIR;
+  const cfg = await resolveMemoryFsConfig();
+  const dir = cfg.dailyDir;
   if (!dir) return null;
   const [file, lineStr] = id.split(':');
   const line = Number(lineStr || 0);

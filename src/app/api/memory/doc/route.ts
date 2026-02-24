@@ -1,35 +1,6 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
-import path from 'path';
-
-function safeResolveDoc(id: string) {
-  const memoryDir = process.env.OPENCLAW_MEMORY_DIR;
-  const rootOverride = process.env.OPENCLAW_MEMORY_ROOT_FILE;
-
-  const clean = id.replace(/^\/+/, '');
-
-  if (clean === 'MEMORY.md') {
-    const full = rootOverride
-      ? path.resolve(rootOverride)
-      : memoryDir
-        ? path.resolve(memoryDir, '..', 'MEMORY.md')
-        : null;
-    return full ? { kind: 'root' as const, full } : null;
-  }
-
-  if (clean.startsWith('memory/')) {
-    if (!memoryDir) return null;
-    const rel = clean.slice('memory/'.length);
-    // Only allow a plain filename.
-    if (!/^[a-zA-Z0-9._-]+\.md$/.test(rel)) return null;
-    const full = path.resolve(memoryDir, rel);
-    const base = path.resolve(memoryDir);
-    if (!full.startsWith(base + path.sep) && full !== base) return null;
-    return { kind: 'memory' as const, full };
-  }
-
-  return null;
-}
+import { safeResolveDoc } from '@/lib/memoryFs';
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -42,7 +13,7 @@ export async function GET(req: Request) {
 
   if (!id) return NextResponse.json({ ok: false, error: 'missing_id' }, { status: 400 });
 
-  const resolved = safeResolveDoc(id);
+  const resolved = await safeResolveDoc(id);
   if (!resolved) return NextResponse.json({ ok: false, error: 'not_allowed' }, { status: 403 });
 
   try {
