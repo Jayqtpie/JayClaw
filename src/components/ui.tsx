@@ -34,16 +34,16 @@ export function Button({
   rightIcon?: ReactNode;
 }) {
   const base =
-    'group inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60 disabled:cursor-not-allowed';
+    'group inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-solid)] disabled:cursor-not-allowed';
 
   const styles =
     variant === 'primary'
-      ? 'bg-[linear-gradient(180deg,var(--primary)_0%,var(--primary-2)_100%)] text-[var(--primary-fg)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] hover:-translate-y-[1px] active:translate-y-0'
+      ? 'bg-[linear-gradient(180deg,var(--primary)_0%,var(--primary-2)_100%)] text-[var(--primary-fg)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:saturate-0 disabled:shadow-none'
       : variant === 'danger'
-        ? 'bg-[linear-gradient(180deg,var(--danger)_0%,color-mix(in_oklab,var(--danger)_86%,black)_100%)] text-[var(--danger-fg)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] hover:-translate-y-[1px] active:translate-y-0'
+        ? 'bg-[linear-gradient(180deg,var(--danger)_0%,color-mix(in_oklab,var(--danger)_86%,black)_100%)] text-[var(--danger-fg)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:saturate-0 disabled:shadow-none'
         : variant === 'outline'
-          ? 'border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_70%,transparent)] text-[var(--fg)] shadow-sm hover:bg-[var(--surface-2)] hover:-translate-y-[1px] active:translate-y-0'
-          : 'text-[var(--fg)] hover:bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)]';
+          ? 'border border-[var(--border-strong)] bg-[color-mix(in_oklab,var(--surface-solid)_88%,transparent)] text-[var(--fg)] shadow-sm hover:bg-[color-mix(in_oklab,var(--surface-solid)_82%,var(--primary-3)_8%)] hover:border-[color-mix(in_oklab,var(--primary)_22%,var(--border-strong))] hover:-translate-y-[1px] active:translate-y-0 disabled:bg-[color-mix(in_oklab,var(--surface-solid)_82%,transparent)] disabled:text-[var(--muted-2)] disabled:border-[var(--border)] disabled:shadow-none'
+          : 'text-[var(--fg)] hover:bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] disabled:text-[var(--muted-2)] disabled:bg-transparent';
 
   return (
     <button type={type ?? 'button'} className={cx(base, styles)} onClick={onClick} disabled={disabled}>
@@ -70,7 +70,7 @@ export function IconButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_70%,transparent)] text-[var(--fg)] shadow-sm transition hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:opacity-60"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[color-mix(in_oklab,var(--surface-solid)_88%,transparent)] text-[var(--fg)] shadow-sm transition hover:bg-[color-mix(in_oklab,var(--surface-solid)_82%,var(--primary-3)_8%)] hover:border-[color-mix(in_oklab,var(--primary)_22%,var(--border-strong))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-solid)] disabled:bg-[color-mix(in_oklab,var(--surface-solid)_82%,transparent)] disabled:text-[var(--muted-2)] disabled:border-[var(--border)] disabled:shadow-none disabled:cursor-not-allowed"
       aria-label={label}
       title={label}
     >
