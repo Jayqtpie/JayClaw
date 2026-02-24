@@ -24,6 +24,7 @@ export function Button({
   type,
   leftIcon,
   rightIcon,
+  className,
 }: {
   children: ReactNode;
   onClick?: () => void | Promise<void>;
@@ -32,6 +33,7 @@ export function Button({
   variant?: 'primary' | 'outline' | 'ghost' | 'danger';
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  className?: string;
 }) {
   const base =
     'group inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 text-sm font-medium transition will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-solid)] disabled:cursor-not-allowed';
@@ -46,7 +48,7 @@ export function Button({
           : 'text-[var(--fg)] hover:bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] disabled:text-[var(--muted-2)] disabled:bg-transparent';
 
   return (
-    <button type={type ?? 'button'} className={cx(base, styles)} onClick={onClick} disabled={disabled}>
+    <button type={type ?? 'button'} className={cx(base, styles, className)} onClick={onClick} disabled={disabled}>
       {leftIcon ? <span className="h-4 w-4 opacity-90">{leftIcon}</span> : null}
       <span className="truncate">{children}</span>
       {rightIcon ? <span className="h-4 w-4 opacity-80">{rightIcon}</span> : null}
@@ -256,7 +258,7 @@ export function Card({
         tone === 'raised' && 'shadow-[var(--shadow-lg)]'
       )}
     >
-      <header className="flex items-start justify-between gap-3">
+      <header className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-[var(--fg)] tracking-[-0.01em]">{title}</h2>
           {subtitle ? <p className="mt-1 text-xs text-[var(--muted)]">{subtitle}</p> : null}

@@ -173,17 +173,19 @@ export default function ChatPage() {
     <div className="space-y-6">
       <Card
         title="Chat"
-        subtitle="Native dashboard chat. Messages are persisted server-side and routed through the gateway tool invoke API (tokens never hit the browser)."
+        subtitle="Dashboard chat (server-side gateway invoke; tokens never hit the browser)."
         right={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={load} disabled={busy}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <Button className="w-full sm:w-auto" variant="outline" onClick={load} disabled={busy}>
               Refresh
             </Button>
-            <Button variant="outline" onClick={loadDiag} disabled={busy || diagBusy}>
+            <Button className="w-full sm:w-auto" variant="outline" onClick={loadDiag} disabled={busy || diagBusy}>
               {diagBusy ? 'Diag…' : 'Diagnostics'}
             </Button>
-            {relayMode ? <StatusChip tone="warn">RELAY MODE</StatusChip> : null}
-            <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>{busy ? 'LIVE' : error ? 'ERROR' : 'READY'}</StatusChip>
+            <div className="flex flex-wrap items-center gap-2">
+              {relayMode ? <StatusChip tone="warn">RELAY</StatusChip> : null}
+              <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>{busy ? 'LIVE' : error ? 'ERROR' : 'READY'}</StatusChip>
+            </div>
           </div>
         }
       >
@@ -214,40 +216,86 @@ export default function ChatPage() {
         ) : null}
 
         {diagnostic ? (
-          <Alert
-            variant={diagnostic?.ok === false ? 'warning' : 'info'}
-            title="Diagnostics captured"
-            message={
-              relayMode
-                ? 'Relay mode: routing via relay. Open diagnostics for the attempt trace.'
-                : 'Use diagnostics only when debugging gateway_error/chat_no_reply.'
-            }
-            right={
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => setShowDiagnostics((v) => !v)}>
-                  {showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
-                </Button>
-                <Button variant="outline" onClick={copyDiag}>
-                  Copy JSON
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDiagnostic(null);
-                    setShowDiagnostics(false);
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            }
-          />
-        ) : null}
+          <>
+            {/* Mobile: compact diagnostics row that stays collapsed unless expanded. */}
+            <div className="lg:hidden">
+              <button
+                type="button"
+                onClick={() => setShowDiagnostics((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] px-4 py-3 text-left shadow-sm"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold tracking-[0.18em] text-[var(--muted-2)]">DIAGNOSTICS</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">
+                    {showDiagnostics ? 'Tap to collapse' : relayMode ? 'Relay attempt trace' : 'Attempt trace'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusChip tone={diagnostic?.ok === false ? 'warn' : 'info'}>
+                    {diagnostic?.ok === false ? 'CHECK' : 'OK'}
+                  </StatusChip>
+                  <span className="text-xs font-semibold text-[var(--muted-2)]">{showDiagnostics ? '—' : '+'}</span>
+                </div>
+              </button>
 
-        {diagnostic && showDiagnostics ? (
-          <pre className="max-h-[240px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
-            {JSON.stringify(diagnostic, null, 2)}
-          </pre>
+              {showDiagnostics ? (
+                <div className="mt-3 space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <Button className="w-full sm:w-auto" variant="outline" onClick={copyDiag}>
+                      Copy JSON
+                    </Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      variant="outline"
+                      onClick={() => {
+                        setDiagnostic(null);
+                        setShowDiagnostics(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <pre className="max-h-[240px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
+                    {JSON.stringify(diagnostic, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Desktop/tablet: keep existing diagnostics summary card. */}
+            <div className="hidden lg:block">
+              <Alert
+                variant={diagnostic?.ok === false ? 'warning' : 'info'}
+                title="Diagnostics captured"
+                message={relayMode ? 'Relay mode: open diagnostics for the trace.' : 'Use diagnostics for gateway_error/chat_no_reply.'}
+                right={
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setShowDiagnostics((v) => !v)}>
+                      {showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
+                    </Button>
+                    <Button variant="outline" onClick={copyDiag}>
+                      Copy JSON
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setDiagnostic(null);
+                        setShowDiagnostics(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                }
+              />
+
+              {showDiagnostics ? (
+                <pre className="mt-3 max-h-[240px] overflow-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_55%,transparent)] p-4 text-[11px] leading-relaxed text-[var(--muted)]">
+                  {JSON.stringify(diagnostic, null, 2)}
+                </pre>
+              ) : null}
+            </div>
+          </>
         ) : null}
 
         {hasErrors ? (
@@ -264,7 +312,10 @@ export default function ChatPage() {
               <div className="text-xs font-semibold tracking-[0.28em] text-[var(--muted-2)]">THREAD</div>
               <div className="text-xs text-[var(--muted)]">{thread?.messages?.length ?? 0} messages</div>
             </div>
-            <div ref={scrollerRef} className="max-h-[60dvh] overflow-auto px-5 py-4">
+            <div
+              ref={scrollerRef}
+              className="max-h-[60dvh] overflow-auto px-5 pt-4 pb-[calc(24px+96px+env(safe-area-inset-bottom))] lg:pb-4"
+            >
               {!thread ? (
                 <div className="space-y-3">
                   <Skeleton className="h-16 w-3/4" />
