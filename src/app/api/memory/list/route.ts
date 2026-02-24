@@ -99,6 +99,12 @@ function extractGatewayHits(result: any): Array<{ id: string; preview: string; t
   return hits;
 }
 
+function isGatewayMemoryUnavailable(e: any): boolean {
+  const status = Number(e?.status || e?.details?.status || 0);
+  const code = String(e?.code || '');
+  return status === 404 || status === 405 || code === 'gateway_not_found' || code === 'gateway_method_not_allowed';
+}
+
 async function buildListLocal(): Promise<{
   mode: MemoryListMode;
   items: MemoryListItem[];
@@ -232,9 +238,31 @@ export async function GET(req: Request) {
     const cfg = await resolveMemoryFsConfig();
     const hasLocal = Boolean(cfg.rootFile || cfg.dailyDir);
 
-    const built = hasLocal
-      ? await buildListLocal()
-      : await buildListGateway(project || date || '202', Math.min(200, page * pageSize));
+    let built: Awaited<ReturnType<typeof buildListLocal>> | Awaited<ReturnType<typeof buildListGateway>>;
+    let warningCodes: string[] = [];
+
+    if (hasLocal) {
+      built = await buildListLocal();
+    } else {
+      try {
+        built = await buildListGateway(project || date || '202', Math.min(200, page * pageSize));
+      } catch (e: any) {
+        if (isGatewayMemoryUnavailable(e)) {
+          built = {
+            mode: 'gateway',
+            items: [],
+            warnings: [
+              'Local memory files are not available in this deployment; showing gateway-backed results instead.',
+              'Gateway memory tool is unavailable (404/405).',
+            ],
+            resolved: { rootFile: null, dailyDir: null },
+          };
+          warningCodes = ['gateway_memory_unavailable'];
+        } else {
+          throw e;
+        }
+      }
+    }
 
     let all = built.items;
 
@@ -279,6 +307,7 @@ export async function GET(req: Request) {
       projects,
       items: pageItems,
       warnings: built.warnings,
+      warningCodes,
       resolved: built.resolved,
     });
   } catch (e: any) {

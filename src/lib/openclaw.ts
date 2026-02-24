@@ -101,7 +101,9 @@ export async function gatewayFetch<T>(path: string, init?: RequestInit): Promise
           ? 'gateway_unauthorized'
           : res.status === 404
             ? 'gateway_not_found'
-            : 'gateway_error',
+            : res.status === 405
+              ? 'gateway_method_not_allowed'
+              : 'gateway_error',
       message: baseMessage,
       details: {
         url,
@@ -110,6 +112,19 @@ export async function gatewayFetch<T>(path: string, init?: RequestInit): Promise
           ? {
               hint:
                 'Gateway rejected auth. Verify OPENCLAW_GATEWAY_TOKEN and that the deployment accepts Authorization Bearer, X-Gateway-Token, or X-OpenClaw-Token.',
+            }
+          : null),
+        ...(res.status === 404
+          ? {
+              hint:
+                'Gateway endpoint not found. Verify OPENCLAW_GATEWAY_URL points to the gateway HTTP(S) API root and that it exposes /tools/invoke.',
+            }
+          : null),
+        ...(res.status === 405
+          ? {
+              hint:
+                'Gateway returned 405 Method Not Allowed. Verify your gateway exposes POST /tools/invoke for tool invocation.',
+              allow: res.headers.get('allow') || undefined,
             }
           : null),
       },
@@ -140,60 +155,60 @@ function safeToolDebug(req: ToolInvokeRequest) {
 export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
   const attempts: Array<{ path: string; body: any }> = [];
 
+  const pathsToTry = ['/tools/invoke'];
+
   // Most common (current JayClaw assumption)
-  attempts.push({
-    path: '/tools/invoke',
-    body: {
-      tool: req.namespace,
-      ...(req.action ? { action: req.action } : {}),
-      ...(req.params ? { params: req.params } : {}),
-    },
-  });
-
-  // Alternate: "namespace" instead of "tool"
-  attempts.push({
-    path: '/tools/invoke',
-    body: {
-      namespace: req.namespace,
-      ...(req.action ? { action: req.action } : {}),
-      ...(req.params ? { params: req.params } : {}),
-    },
-  });
-
-  // Alternate: action nested inside params
-  if (req.action) {
+  for (const path of pathsToTry) {
     attempts.push({
-      path: '/tools/invoke',
+      path,
       body: {
         tool: req.namespace,
-        params: {
-          action: req.action,
-          ...(req.params || {}),
-        },
-      },
-    });
-  }
-
-  // Alternate: tool name includes action (e.g. "message.send")
-  if (req.action) {
-    attempts.push({
-      path: '/tools/invoke',
-      body: {
-        tool: `${req.namespace}.${req.action}`,
+        ...(req.action ? { action: req.action } : {}),
         ...(req.params ? { params: req.params } : {}),
       },
     });
   }
 
-  // Endpoint fallback some older gateways used
-  attempts.push({
-    path: '/invoke',
-    body: {
-      tool: req.namespace,
-      ...(req.action ? { action: req.action } : {}),
-      ...(req.params ? { params: req.params } : {}),
-    },
-  });
+  // Alternate: "namespace" instead of "tool"
+  for (const path of pathsToTry) {
+    attempts.push({
+      path,
+      body: {
+        namespace: req.namespace,
+        ...(req.action ? { action: req.action } : {}),
+        ...(req.params ? { params: req.params } : {}),
+      },
+    });
+  }
+
+  // Alternate: action nested inside params
+  if (req.action) {
+    for (const path of pathsToTry) {
+      attempts.push({
+        path,
+        body: {
+          tool: req.namespace,
+          params: {
+            action: req.action,
+            ...(req.params || {}),
+          },
+        },
+      });
+    }
+  }
+
+  // Alternate: tool name includes action (e.g. "message.send")
+  if (req.action) {
+    for (const path of pathsToTry) {
+      attempts.push({
+        path,
+        body: {
+          tool: `${req.namespace}.${req.action}`,
+          ...(req.params ? { params: req.params } : {}),
+        },
+      });
+    }
+  }
 
   let lastErr: any = null;
   for (let i = 0; i < attempts.length; i++) {
@@ -207,7 +222,10 @@ export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
       const retryable =
         status === 404 ||
         status === 400 ||
+        status === 405 ||
+        status === 422 ||
         code === 'gateway_not_found' ||
+        code === 'gateway_method_not_allowed' ||
         code === 'gateway_error';
 
       const fatal = code === 'gateway_unauthorized' || code === 'gateway_unreachable' || status === 401 || status === 403;

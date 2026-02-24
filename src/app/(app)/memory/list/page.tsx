@@ -28,6 +28,7 @@ type MemoryListResponse = {
   projects: string[];
   items: MemoryListItem[];
   warnings?: string[];
+  warningCodes?: string[];
   resolved?: { rootFile: string | null; dailyDir: string | null };
 };
 
@@ -236,6 +237,9 @@ export default function MemoryListPage() {
               <StatusChip tone={data.mode === 'gateway' ? 'info' : 'ok'}>
                 {data.mode === 'gateway' ? 'Gateway mode' : 'Local mode'}
               </StatusChip>
+            ) : null}
+            {data?.warningCodes?.includes('gateway_memory_unavailable') ? (
+              <StatusChip tone="warn">Gateway memory unavailable</StatusChip>
             ) : null}
             <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>
               {busy ? 'Loading…' : error ? 'Error' : `${total} docs`}
