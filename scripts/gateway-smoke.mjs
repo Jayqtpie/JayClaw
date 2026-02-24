@@ -50,9 +50,15 @@ async function post(path, body) {
 
 async function main() {
   if (cmd === 'session_status') {
-    const r = await post('/tools/invoke', { tool: 'session_status' });
-    console.log(JSON.stringify(r, null, 2));
-    return;
+    const paths = ['/tools/invoke', '/api/tools/invoke', '/tool/invoke', '/invoke'];
+    for (const p of paths) {
+      const r = await post(p, { tool: 'session_status' });
+      console.log(`\n=== ${p} => HTTP ${r.status} ===`);
+      console.log(JSON.stringify(r.json, null, 2));
+      if (r.ok) return;
+      if (r.status === 401 || r.status === 403) return;
+    }
+    process.exit(1);
   }
 
   if (cmd === 'message.send') {
@@ -64,11 +70,13 @@ async function main() {
     }
     const message = arg || 'gateway smoke test';
 
+    const toolPaths = ['/tools/invoke', '/api/tools/invoke', '/tool/invoke'];
+
     const attempts = [
-      { path: '/tools/invoke', body: { tool: 'message', action: 'send', params: { channel, target, message } } },
-      { path: '/tools/invoke', body: { namespace: 'message', action: 'send', params: { channel, target, message } } },
-      { path: '/tools/invoke', body: { tool: 'message', params: { action: 'send', channel, target, message } } },
-      { path: '/tools/invoke', body: { tool: 'message.send', params: { channel, target, message } } },
+      ...toolPaths.map((path) => ({ path, body: { tool: 'message', action: 'send', params: { channel, target, message } } })),
+      ...toolPaths.map((path) => ({ path, body: { namespace: 'message', action: 'send', params: { channel, target, message } } })),
+      ...toolPaths.map((path) => ({ path, body: { tool: 'message', params: { action: 'send', channel, target, message } } })),
+      ...toolPaths.map((path) => ({ path, body: { tool: 'message.send', params: { channel, target, message } } })),
       { path: '/invoke', body: { tool: 'message', action: 'send', params: { channel, target, message } } },
     ];
 

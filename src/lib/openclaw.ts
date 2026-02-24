@@ -117,13 +117,13 @@ export async function gatewayFetch<T>(path: string, init?: RequestInit): Promise
         ...(res.status === 404
           ? {
               hint:
-                'Gateway endpoint not found. Verify OPENCLAW_GATEWAY_URL points to the gateway HTTP(S) API root and that it exposes /tools/invoke.',
+                'Gateway endpoint not found. OPENCLAW_GATEWAY_URL should point to the HTTP(S) API root (not ws/wss). JayClaw will retry a few common tool-invoke paths (/tools/invoke, /api/tools/invoke, /tool/invoke).',
             }
           : null),
         ...(res.status === 405
           ? {
               hint:
-                'Gateway returned 405 Method Not Allowed. Verify your gateway exposes POST /tools/invoke for tool invocation.',
+                'Gateway returned 405 Method Not Allowed. This often indicates a base-path mismatch or an older/newer gateway API surface. JayClaw will retry a few common tool-invoke paths; if this persists, confirm your gateway exposes POST tool invocation.',
               allow: res.headers.get('allow') || undefined,
             }
           : null),
@@ -155,7 +155,7 @@ function safeToolDebug(req: ToolInvokeRequest) {
 export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
   const attempts: Array<{ path: string; body: any }> = [];
 
-  const pathsToTry = ['/tools/invoke'];
+  const pathsToTry = ['/tools/invoke', '/api/tools/invoke', '/tool/invoke'];
 
   // Most common (current JayClaw assumption)
   for (const path of pathsToTry) {

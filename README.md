@@ -86,6 +86,27 @@ You can control this with:
 
 If you need durable history on Vercel, wire these stores to a DB/kv (Upstash/Redis, Postgres, etc.).
 
+### Known gateway limitations + graceful behavior
+
+OpenClaw Gateway deployments can vary by **base path**, **available tools**, and **tool invocation schema**.
+
+JayClaw is designed to **degrade gracefully** (no blank pages / hard UI crashes):
+
+- Tool invocation is centralized in **one place**: `src/lib/openclaw.ts`.
+- If tool invocation fails with `404` / `405` / schema mismatches, API routes return **actionable errors** and pages show **warnings** + safe empty states.
+- JayClaw retries common tool invoke endpoints: `/tools/invoke`, `/api/tools/invoke`, `/tool/invoke`.
+
+Quick verification endpoints:
+
+- `GET /api/ops/status` (gateway `session_status` probe)
+- `GET /api/chat/diag` (read-only chat probes)
+- `GET /api/diag/summary` (aggregated gateway/chat/memory/console readiness)
+
+If you still see `gateway_method_not_allowed` or `gateway_not_found`, verify:
+
+- `OPENCLAW_GATEWAY_URL` points at the **HTTP(S) API root** (not `ws://` / `wss://`).
+- Your gateway build exposes the tools you’re calling (some deployments omit `sessions_*` / `memory`).
+
 ### Notes
 
 - The Gateway API shape can differ between deployments.
