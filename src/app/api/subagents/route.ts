@@ -11,7 +11,7 @@ export async function GET() {
     return NextResponse.json({ ok: true, result });
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message || 'Failed to load subagents', details: e?.details },
+      { ok: false, error: e?.code || e?.message || 'Failed to load subagents', details: e?.details },
       { status: e?.status || 500 }
     );
   }
@@ -22,15 +22,22 @@ export async function POST(req: Request) {
   const message = body?.message?.trim();
   if (!message) return NextResponse.json({ ok: false, error: 'missing_message' }, { status: 400 });
 
-  const result = await invokeTool<any>({
-    namespace: 'subagents',
-    action: 'steer',
-    params: {
-      // For spawning, your gateway may expose a dedicated action.
-      // This MVP uses 'steer' as a placeholder. Update as needed.
-      message,
-    },
-  });
+  try {
+    const result = await invokeTool<any>({
+      namespace: 'subagents',
+      action: 'steer',
+      params: {
+        // For spawning, your gateway may expose a dedicated action.
+        // This MVP uses 'steer' as a placeholder. Update as needed.
+        message,
+      },
+    });
 
-  return NextResponse.json({ ok: true, result });
+    return NextResponse.json({ ok: true, result });
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.code || e?.message || 'Failed to send subagent message', details: e?.details },
+      { status: e?.status || 500 }
+    );
+  }
 }
