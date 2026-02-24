@@ -66,6 +66,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [diagnostic, setDiagnostic] = useState<any | null>(null);
   const [diagBusy, setDiagBusy] = useState(false);
+  const [relayMode, setRelayMode] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -112,6 +113,7 @@ export default function ChatPage() {
     setBusy(true);
     setError(null);
     setDiagnostic(null);
+    setRelayMode(false);
 
     // optimistic UI (client-side)
     const optimistic: ChatMsg = {
@@ -132,6 +134,8 @@ export default function ChatPage() {
         if (j?.diagnostic) setDiagnostic(j.diagnostic);
         throw new Error(j?.error || 'Send failed');
       }
+      setRelayMode(j?.result?.mode === 'relay');
+      if (j?.result?.mode === 'relay' && j?.result?.diagnostic) setDiagnostic(j.result.diagnostic);
       setThread(j.thread);
     } catch (e: any) {
       setError(e?.message || 'Send failed');
@@ -168,6 +172,7 @@ export default function ChatPage() {
             <Button variant="outline" onClick={loadDiag} disabled={busy || diagBusy}>
               {diagBusy ? 'Diag…' : 'Diagnostics'}
             </Button>
+            {relayMode ? <StatusChip tone="warn">RELAY MODE</StatusChip> : null}
             <StatusChip tone={busy ? 'warn' : error ? 'bad' : 'ok'}>{busy ? 'LIVE' : error ? 'ERROR' : 'READY'}</StatusChip>
           </div>
         }

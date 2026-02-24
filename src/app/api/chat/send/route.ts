@@ -169,6 +169,11 @@ type AttemptLog = {
   hint?: string;
 };
 
+type ChatMode = 'full' | 'relay';
+
+const RELAY_PLACEHOLDER =
+  'Message delivered. Reply stream unavailable in this gateway mode.';
+
 function errSummary(e: any): { status?: number; code?: string; message?: string } {
   return {
     status: typeof e?.status === 'number' ? e.status : undefined,
@@ -288,6 +293,7 @@ export async function POST(req: Request) {
     let result: any = null;
     let assistantText: string | null = null;
     let pipeline: 'sessions' | 'sessions_label' | 'sessions_spawn' | 'tool' = 'sessions';
+    let mode: ChatMode = 'full';
 
     const pollAttempts = Math.max(1, Math.min(12, Number(process.env.CHAT_POLL_ATTEMPTS || '8')));
     const pollDelayMs = Math.max(150, Math.min(1500, Number(process.env.CHAT_POLL_DELAY_MS || '350')));
@@ -419,18 +425,34 @@ export async function POST(req: Request) {
       }
 
       if (!assistantText) {
-        throw Object.assign(new Error('chat_no_reply'), {
-          status: 502,
-          code: 'chat_no_reply',
-          details: {
-            hint:
-              'Gateway returned no assistant text. Preferred fix: ensure sessions_send and sessions_history are available. ' +
-              'Fallback fix: use CHAT_FALLBACK_MODE=sessions_spawn (default) or configure CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION for a tool that returns a reply, ' +
-              'or update extractAssistantText() to match your gateway response shape.',
-            configuredTool: { namespace: configuredNamespace, action: configuredAction },
-            fallbackMode,
-          },
-        });
+        const delivered = attempts.some(
+          (a) =>
+            a.ok &&
+            (a.path === 'sessions_send(sessionKey)' ||
+              a.path === 'sessions_send(label)' ||
+              a.path === 'sessions_spawn(run.message)' ||
+              a.path === 'invokeTool(configured)')
+        );
+
+        // Relay mode: message delivery succeeded, but this gateway deployment cannot provide a reply stream/text.
+        // Common when sessions_* endpoints are not exposed (405) or when the fallback tool doesn't return transcript text.
+        if (delivered) {
+          mode = 'relay';
+          assistantText = RELAY_PLACEHOLDER;
+        } else {
+          throw Object.assign(new Error('chat_no_reply'), {
+            status: 502,
+            code: 'chat_no_reply',
+            details: {
+              hint:
+                'Gateway returned no assistant text. Preferred fix: ensure sessions_send and sessions_history are available. ' +
+                'Fallback fix: use CHAT_FALLBACK_MODE=sessions_spawn (default) or configure CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION for a tool that returns a reply, ' +
+                'or update extractAssistantText() to match your gateway response shape.',
+              configuredTool: { namespace: configuredNamespace, action: configuredAction },
+              fallbackMode,
+            },
+          });
+        }
       }
     }
 
@@ -443,6 +465,8 @@ export async function POST(req: Request) {
       payload: {
         messageLen: message.length,
         pipeline,
+        mode,
+        attempted: mode === 'relay' ? attempts : undefined,
         session: {
           sessionKey: sessionKeyEnv ? sessionKey : undefined,
           sessionLabel: sessionLabelEnv ? sessionLabel : undefined,
@@ -453,7 +477,16 @@ export async function POST(req: Request) {
     });
 
     const thread = await readThread();
-    return NextResponse.json({ ok: true, result: { pipeline, result }, thread });
+    return NextResponse.json({
+      ok: true,
+      result: {
+        pipeline,
+        mode,
+        result,
+        diagnostic: mode === 'relay' ? { attempted: attempts } : undefined,
+      },
+      thread,
+    });
   } catch (e: any) {
     await updateMessage(userMsg.id, { status: 'error' });
 
