@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { invokeTool } from '@/lib/openclaw';
+import { requireNotSafeMode } from '@/lib/safeMode';
+import { appendAudit } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -23,6 +25,8 @@ export async function POST(req: Request) {
   if (!message) return NextResponse.json({ ok: false, error: 'missing_message' }, { status: 400 });
 
   try {
+    await requireNotSafeMode();
+
     const result = await invokeTool<any>({
       namespace: 'subagents',
       action: 'steer',
@@ -33,8 +37,22 @@ export async function POST(req: Request) {
       },
     });
 
+    await appendAudit({
+      action: 'subagents.steer',
+      summary: message.length > 180 ? message.slice(0, 180) + '…' : message,
+      payload: { messageLen: message.length },
+      result: { ok: true, status: 200 },
+    });
+
     return NextResponse.json({ ok: true, result });
   } catch (e: any) {
+    await appendAudit({
+      action: 'subagents.steer',
+      summary: message.length > 180 ? message.slice(0, 180) + '…' : message,
+      payload: { messageLen: message.length },
+      result: { ok: false, status: e?.status || 500, error: e?.code || e?.message || 'failed' },
+    });
+
     return NextResponse.json(
       { ok: false, error: e?.code || e?.message || 'Failed to send subagent message', details: e?.details },
       { status: e?.status || 500 }

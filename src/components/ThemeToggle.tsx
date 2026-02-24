@@ -33,6 +33,15 @@ export default function ThemeToggle() {
     window.localStorage.setItem('occ_theme', next);
   }
 
+  useEffect(() => {
+    function onToggle() {
+      toggle();
+    }
+    window.addEventListener('jc:toggle-theme', onToggle as any);
+    return () => window.removeEventListener('jc:toggle-theme', onToggle as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
+
   return (
     <button
       type="button"

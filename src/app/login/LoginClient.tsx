@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Card, TextInput } from '@/components/ui';
+import { Alert, Button, Card, StatusChip, TextInput } from '@/components/ui';
 import ThemeToggle from '@/components/ThemeToggle';
 
 export default function LoginClient() {
@@ -17,6 +17,7 @@ export default function LoginClient() {
   const canSubmit = useMemo(() => key.trim().length > 0 && !busy, [key, busy]);
 
   async function onSubmit() {
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
@@ -38,22 +39,51 @@ export default function LoginClient() {
   }
 
   return (
-    <div className="min-h-dvh bg-[var(--bg)] text-[var(--fg)]">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <div className="flex items-center justify-between rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-          <div>
-            <div className="text-xs font-semibold tracking-[0.26em] text-[var(--muted-2)]">JAYCLAW CONTROL CENTER</div>
-            <div className="mt-1 text-lg font-semibold">Login</div>
-            <p className="mt-2 text-sm text-[var(--muted)]">Enter the APP_ACCESS_KEY to unlock this control panel.</p>
+    <div className="min-h-dvh text-[var(--fg)]">
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <div className="relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-lg)] backdrop-blur-xl">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-70"
+            aria-hidden="true"
+            style={{
+              background:
+                'radial-gradient(900px 260px at 18% 0%, color-mix(in oklab, var(--primary) 28%, transparent), transparent 60%), radial-gradient(800px 240px at 88% 10%, color-mix(in oklab, var(--primary-3) 24%, transparent), transparent 60%)',
+            }}
+          />
+
+          <div className="relative flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold tracking-[0.26em] text-[var(--muted-2)]">JAYCLAW CONTROL CENTER</div>
+              <div className="mt-1 text-2xl font-semibold tracking-[-0.03em]">Sign in</div>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Enter the <span className="font-mono">APP_ACCESS_KEY</span> to unlock the control center.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusChip tone="info">Secure cookie session</StatusChip>
+              <ThemeToggle />
+            </div>
           </div>
-          <ThemeToggle />
         </div>
 
         <div className="mt-6">
-          <Card title="Access key" subtitle="Validated on the server; stored only as an httpOnly session cookie.">
+          <Card title="Access key" subtitle="Validated on the server; stored only as an httpOnly session cookie." tone="raised">
             <div className="space-y-3">
-              <TextInput value={key} onChange={setKey} placeholder="APP_ACCESS_KEY" type="password" />
-              {error ? <div className="text-sm text-red-600">{error}</div> : null}
+              <TextInput
+                value={key}
+                onChange={setKey}
+                placeholder="APP_ACCESS_KEY"
+                type="password"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void onSubmit();
+                  }
+                }}
+              />
+
+              {error ? <Alert variant="error" title="Login failed" message={error} /> : null}
+
               <div className="flex justify-end">
                 <Button disabled={!canSubmit} onClick={onSubmit}>
                   {busy ? 'Signing in…' : 'Sign in'}
@@ -63,8 +93,9 @@ export default function LoginClient() {
           </Card>
         </div>
 
-        <div className="mt-6 text-xs text-[var(--muted)]">
-          Tip: set <code className="rounded bg-[var(--surface-2)] px-1 py-0.5">APP_ACCESS_KEY</code> in your Vercel project.
+        <div className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface-solid)_60%,transparent)] p-4 text-xs text-[var(--muted)] shadow-sm">
+          Tip: set <code className="rounded bg-[var(--surface-2)] px-1 py-0.5 font-mono">APP_ACCESS_KEY</code> in your deployment
+          environment (e.g. Vercel).
         </div>
       </div>
     </div>

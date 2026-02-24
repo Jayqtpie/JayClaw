@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Button, Card, TextInput, TextArea } from '@/components/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, Card, CodeBlock, EmptyState, Skeleton, StatusChip, TextArea } from '@/components/ui';
 
 type SubagentList = any;
 
@@ -12,11 +12,16 @@ export default function SubagentsPage() {
 
   const [spawnPrompt, setSpawnPrompt] = useState('');
 
+  const count = useMemo(() => {
+    const arr = (list as any)?.subagents || (list as any)?.items || (Array.isArray(list) ? list : null);
+    return Array.isArray(arr) ? arr.length : undefined;
+  }, [list]);
+
   async function refresh() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch('/api/subagents');
+      const res = await fetch('/api/subagents', { cache: 'no-store' });
       const j = (await res.json().catch(() => null)) as any;
       if (!res.ok) throw new Error(j?.error || 'Failed to load');
       setList(j.result);
@@ -50,7 +55,7 @@ export default function SubagentsPage() {
   }
 
   useEffect(() => {
-    refresh();
+    void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -58,19 +63,34 @@ export default function SubagentsPage() {
     <div className="space-y-6">
       <Card
         title="Subagents"
-        subtitle="List and (optionally) spawn/steer subagents via the gateway. If your gateway uses a different action name, update /src/lib/openclaw.ts + /api/subagents."
+        subtitle="List and optionally spawn/steer subagents via the gateway."
         right={
-          <Button variant="outline" onClick={refresh} disabled={busy}>
-            {busy ? 'Loading…' : 'Refresh'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <StatusChip tone={busy ? 'warn' : 'info'}>{busy ? 'Loading…' : count !== undefined ? `${count} items` : 'Ready'}</StatusChip>
+            <Button variant="outline" onClick={refresh} disabled={busy}>
+              Refresh
+            </Button>
+          </div>
         }
       >
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {error ? (
+          <Alert variant="error" title="Couldn’t load subagents" message={error} right={<Button variant="outline" onClick={refresh}>Retry</Button>} />
+        ) : (
+          <Alert
+            title="Fast workflow"
+            variant="info"
+            message={
+              <span>
+                Use the command palette (Ctrl/Cmd+K) to jump to Ops / Scheduler / Memory without losing context.
+              </span>
+            }
+          />
+        )}
       </Card>
 
-      <Card title="Spawn / Steer" subtitle="MVP placeholder: POSTs to /api/subagents (server-side).">
+      <Card title="Spawn / Steer" subtitle="POSTs to /api/subagents (server-side).">
         <div className="space-y-3">
-          <TextArea value={spawnPrompt} onChange={setSpawnPrompt} rows={5} placeholder="Describe the subagent task…" />
+          <TextArea value={spawnPrompt} onChange={setSpawnPrompt} rows={6} placeholder="Describe the subagent task…" />
           <div className="flex justify-end">
             <Button onClick={spawn} disabled={busy || !spawnPrompt.trim()}>
               {busy ? 'Working…' : 'Send'}
@@ -80,9 +100,16 @@ export default function SubagentsPage() {
       </Card>
 
       <Card title="Raw list" subtitle="Gateway response.">
-        <pre className="max-h-[520px] overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--fg)]">
-          {list ? JSON.stringify(list, null, 2) : '—'}
-        </pre>
+        {busy && !list ? (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ) : !list ? (
+          <EmptyState title="No data" description="Refresh to fetch the current subagent list." action={<Button variant="outline" onClick={refresh}>Refresh</Button>} />
+        ) : (
+          <CodeBlock label="SUBAGENTS">{JSON.stringify(list, null, 2)}</CodeBlock>
+        )}
       </Card>
     </div>
   );

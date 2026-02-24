@@ -122,22 +122,18 @@ export async function gatewayFetch<T>(path: string, init?: RequestInit): Promise
 
 export type ToolInvokeRequest = {
   namespace: string; // tool name, e.g. "subagents", "session_status", "cron"
-  action?: string; // optional action merged into params when needed
+  action?: string; // many tools require top-level action
   params?: Record<string, unknown>;
 };
 
 // OpenClaw gateway tool invocation endpoint.
 export async function invokeTool<T>(req: ToolInvokeRequest): Promise<T> {
-  const params = {
-    ...(req.params ?? {}),
-    ...(req.action ? { action: req.action } : {}),
-  };
-
   return gatewayFetch<T>('/tools/invoke', {
     method: 'POST',
     body: JSON.stringify({
       tool: req.namespace,
-      params,
+      ...(req.action ? { action: req.action } : {}),
+      ...(req.params ? { params: req.params } : {}),
     }),
   });
 }

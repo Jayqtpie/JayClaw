@@ -1,71 +1,117 @@
 @import "tailwindcss";
 
 /*
-  Bright, modern SaaS theme (default LIGHT) — intentionally distinct from GuidedBarakah.
-  Dark mode is optional and uses the same semantic tokens.
+  JayClaw — Flagship Control Center theme
+  - Semantic tokens (light/dark)
+  - Motion-safe microinteractions
+  - Premium glass + depth without heavy deps
 */
 
 :root {
   color-scheme: light;
 
+  /* Core */
   --bg: #f7f8fb;
-  --fg: #0f172a; /* slate-900 */
+  --fg: #0b1220;
+  --muted: #475569;
+  --muted-2: #64748b;
 
-  --muted: #475569; /* slate-600 */
-  --muted-2: #64748b; /* slate-500 */
+  /* Surfaces */
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-solid: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #eaf0ff;
+  --border: rgba(226, 232, 240, 0.9);
+  --border-strong: rgba(148, 163, 184, 0.6);
 
-  --surface: #ffffff;
-  --surface-2: #f1f5f9; /* slate-100 */
-  --border: #e2e8f0; /* slate-200 */
-
-  --shadow: 0 1px 1px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
-
-  --ring: rgba(37, 99, 235, 0.55); /* blue-600 */
-
+  /* Brand */
   --primary: #2563eb; /* blue-600 */
   --primary-2: #1d4ed8; /* blue-700 */
+  --primary-3: #0ea5e9; /* sky-500 */
   --primary-fg: #ffffff;
 
   --danger: #dc2626;
   --danger-fg: #ffffff;
 
+  --success: #16a34a;
+  --warning: #f59e0b;
+
+  /* Code */
   --code: #0b1220;
   --code-fg: #e2e8f0;
+
+  /* Shape / depth */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 1px 0 rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.06);
+  --shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 12px 34px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 1px 0 rgba(15, 23, 42, 0.08), 0 26px 70px rgba(15, 23, 42, 0.14);
+
+  /* Focus */
+  --ring: rgba(37, 99, 235, 0.55);
+
+  /* Backdrops */
+  --bg-grad:
+    radial-gradient(1100px 800px at 18% 6%, rgba(37, 99, 235, 0.16), transparent 55%),
+    radial-gradient(1000px 760px at 92% 12%, rgba(14, 165, 233, 0.12), transparent 52%),
+    radial-gradient(900px 680px at 50% 100%, rgba(99, 102, 241, 0.10), transparent 55%),
+    linear-gradient(180deg, #f7f8fb 0%, #f6f8ff 45%, #f7f8fb 100%);
 }
 
 .dark {
   color-scheme: dark;
 
-  --bg: #0b1020;
+  --bg: #070a14;
   --fg: #e5e7eb;
-
   --muted: #94a3b8;
   --muted-2: #64748b;
 
-  --surface: #0f172a;
-  --surface-2: #111c34;
-  --border: #22304d;
-
-  --shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 16px 40px rgba(0, 0, 0, 0.35);
-
-  --ring: rgba(99, 102, 241, 0.6); /* indigo-500 */
+  --surface: rgba(15, 23, 42, 0.75);
+  --surface-solid: #0f172a;
+  --surface-2: #0b1224;
+  --surface-3: #0d1630;
+  --border: rgba(34, 48, 77, 0.85);
+  --border-strong: rgba(148, 163, 184, 0.32);
 
   --primary: #6366f1;
   --primary-2: #4f46e5;
-  --primary-fg: #0b1020;
+  --primary-3: #22d3ee;
+  --primary-fg: #070a14;
 
   --danger: #ef4444;
-  --danger-fg: #0b1020;
+  --danger-fg: #070a14;
 
-  --code: #060914;
+  --success: #22c55e;
+  --warning: #fbbf24;
+
+  --code: #050816;
   --code-fg: #e5e7eb;
+
+  --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.24), 0 10px 26px rgba(0, 0, 0, 0.30);
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.28), 0 16px 46px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 1px 0 rgba(0, 0, 0, 0.34), 0 30px 80px rgba(0, 0, 0, 0.60);
+
+  --ring: rgba(99, 102, 241, 0.62);
+
+  --bg-grad:
+    radial-gradient(1100px 760px at 18% 6%, rgba(99, 102, 241, 0.18), transparent 55%),
+    radial-gradient(1000px 760px at 92% 14%, rgba(34, 211, 238, 0.12), transparent 55%),
+    radial-gradient(900px 680px at 50% 100%, rgba(14, 165, 233, 0.10), transparent 55%),
+    linear-gradient(180deg, #070a14 0%, #060a16 45%, #070a14 100%);
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--bg);
+  background: var(--bg-grad);
   color: var(--fg);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
     "Segoe UI Emoji";
+  letter-spacing: -0.01em;
 }
 
 a {
@@ -81,4 +127,62 @@ button,
 input,
 textarea {
   touch-action: manipulation;
+}
+
+/* Motion safety */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Subtle noise overlay (cheap, no images) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.5) 0px, rgba(255, 255, 255, 0.5) 1px, transparent 1px, transparent 2px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0px, rgba(0, 0, 0, 0.35) 1px, transparent 1px, transparent 3px);
+}
+
+.dark body::before {
+  opacity: 0.06;
+}
+
+/* Shimmer skeleton */
+@keyframes jc-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.jc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+}
+
+.jc-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-120%);
+  animation: jc-shimmer 1.2s ease-in-out infinite;
+}
+
+.dark .jc-skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
 }

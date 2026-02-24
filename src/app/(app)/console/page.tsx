@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { Button, Card, TextArea } from '@/components/ui';
+import { useMemo, useState } from 'react';
+import { Alert, Button, Card, CodeBlock, EmptyState, StatusChip, TextArea } from '@/components/ui';
 
 export default function ConsolePage() {
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const canSend = useMemo(() => message.trim().length > 0 && !busy, [message, busy]);
 
   async function send() {
     const text = message.trim();
@@ -37,22 +39,46 @@ export default function ConsolePage() {
 
   return (
     <div className="space-y-6">
-      <Card title="Console" subtitle="Send a message to the main OpenClaw session (via server-side gateway call).">
+      <Card
+        title="Console"
+        subtitle="Send a message to the main OpenClaw session (server-side gateway call)."
+        right={<StatusChip tone={busy ? 'warn' : 'info'}>{busy ? 'Sending…' : 'Ready'}</StatusChip>}
+      >
         <div className="space-y-3">
-          <TextArea value={message} onChange={setMessage} placeholder="Type a message…" rows={6} />
-          <div className="flex justify-end">
-            <Button onClick={send} disabled={busy || !message.trim()}>
+          <TextArea
+            value={message}
+            onChange={setMessage}
+            placeholder="Type a message… (Ctrl/Cmd+Enter to send)"
+            rows={7}
+            onKeyDown={(e) => {
+              const mac = navigator.platform.includes('Mac');
+              const accel = mac ? e.metaKey : e.ctrlKey;
+              if (accel && e.key === 'Enter') {
+                e.preventDefault();
+                if (canSend) void send();
+              }
+            }}
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-[var(--muted)]">
+              Tip: keep messages operational and explicit. The gateway call happens server-side.
+            </div>
+            <Button onClick={send} disabled={!canSend}>
               {busy ? 'Sending…' : 'Send'}
             </Button>
           </div>
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+
+          {error ? <Alert variant="error" title="Send failed" message={error} /> : null}
         </div>
       </Card>
 
       <Card title="Last result" subtitle="Raw gateway response.">
-        <pre className="max-h-[420px] overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--fg)]">
-          {result ? JSON.stringify(result, null, 2) : '—'}
-        </pre>
+        {!result && !busy ? (
+          <EmptyState title="No result yet" description="Send a console message to see the gateway response here." />
+        ) : (
+          <CodeBlock label={busy ? 'WORKING…' : 'RESULT'}>{result ? JSON.stringify(result, null, 2) : '…'}</CodeBlock>
+        )}
       </Card>
     </div>
   );
