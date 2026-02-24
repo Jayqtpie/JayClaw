@@ -110,15 +110,18 @@ async function main() {
 
   const overflow = checkNoHorizontalOverflowHeuristic();
 
-  const child = spawn(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['next', 'start', '-p', String(port)],
-    {
-      cwd: projectRoot,
-      env: { ...process.env, PORT: String(port), NODE_ENV: 'production' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  );
+  const nextBin = path.join(projectRoot, 'node_modules', 'next', 'dist', 'bin', 'next');
+  if (!fs.existsSync(nextBin)) {
+    log('ERROR: next binary not found. Did you run `npm install`?');
+    process.exitCode = 2;
+    return;
+  }
+
+  const child = spawn(process.execPath, [nextBin, 'start', '-p', String(port)], {
+    cwd: projectRoot,
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
 
   let stderr = '';
   child.stderr.on('data', (d) => {
@@ -142,7 +145,16 @@ async function main() {
     results.push({ path: p, ...r });
   }
 
-  child.kill('SIGTERM');
+  // Shut down cleanly.
+  const exited = await new Promise((resolve) => {
+    const t = setTimeout(() => resolve(false), 4000);
+    child.once('exit', () => {
+      clearTimeout(t);
+      resolve(true);
+    });
+    child.kill('SIGTERM');
+  });
+  if (!exited) child.kill('SIGKILL');
 
   log('');
   log('perf-check summary');
