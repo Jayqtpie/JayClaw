@@ -18,18 +18,38 @@ A Vercel-ready Next.js (App Router, TypeScript) control panel for securely opera
   - Mutating API routes call `requireNotSafeMode()` and return `409 safe_mode_enabled` when blocked.
 - **Audit trail:**
   - Mutating API routes append JSONL entries to `./.jayclaw-data/audit.jsonl` when a writable filesystem is available.
-  - On serverless / read-only filesystems, the app automatically falls back to an in-memory log (graceful empty state on cold start).
+  - On serverless / read-only filesystems, the app automatically falls back to an in-memory log.
 
 ## Pages
 
-- `/console` – send a message to the main session
-- `/subagents` – list + send “spawn/steer” request (MVP placeholder)
-- `/ops` – gateway status + restart button
-- `/scheduler` – create/list/run reminders (MVP in-memory store)
-- `/memory` – memory search + snippet view (gateway-first; filesystem fallback)
+- `/diagnostics` – **PASS/FAIL capability matrix** (with timestamps) + one-click **Run probes**
+- `/ops` – gateway status (`session_status`) + config diagnostics (restart is intentionally disabled)
 - `/health` – **Health Wall** (gateway status, token check, SSL expiry, recent failures)
+- `/console` – console message send (capability-gated; requires env + gateway support)
+- `/subagents` – list subagents (spawn/steer is intentionally disabled unless verified)
+- `/scheduler` – create/list/toggle reminders (local in-memory store; run-now is intentionally disabled)
+- `/memory` – memory search + snippet view (gateway-first; filesystem fallback)
 - `/audit` – **Audit Trail** panel (local JSONL store)
-- `/quick` – **Quick Actions** templates/macros
+- `/quick` – **Quick Actions** templates/macros (capability-gated)
+
+## Functional surface in current gateway mode
+
+JayClaw is explicitly **capability-gated** to avoid fake success states.
+
+Verified via real probes (`/diagnostics`):
+
+- PASS:
+  - `session_status`
+  - `subagents.list` (read-only)
+  - Memory: local filesystem mode (when configured) OR `memory.search` (gateway)
+  - Local modules: Audit log read, Scheduler list/create/toggle
+
+Intentionally disabled (shows **Unavailable in current gateway mode**):
+
+- Chat module (removed completely)
+- Gateway restart (public API not exposed)
+- Scheduler “Run now” (requires verified message-send capability)
+- Subagents spawn/steer (mutating + not safe to auto-probe)
 
 ## Local development
 
@@ -48,85 +68,55 @@ npm run dev
 
 Open: <http://localhost:3000>
 
-## Vercel deployment
+## Deployment (Vercel or similar)
 
-1. Push this project to GitHub.
-2. Import it into Vercel.
-3. Set these Environment Variables in Vercel:
-   - `OPENCLAW_GATEWAY_URL`
-   - `OPENCLAW_GATEWAY_TOKEN`
-   - `APP_ACCESS_KEY`
+Set these Environment Variables:
 
-   Chat (optional but recommended):
-   - `CHAT_SESSION_KEY` (default: `agent:main:main`) – which OpenClaw session the dashboard sends chat messages to via `sessions_send` + `sessions_history`
-   - `CHAT_POLL_ATTEMPTS` (default: `8`) – bounded retries while waiting for the assistant reply
-   - `CHAT_POLL_DELAY_MS` (default: `350`) – delay between history polls
+- `OPENCLAW_GATEWAY_URL`
+- `OPENCLAW_GATEWAY_TOKEN`
+- `APP_ACCESS_KEY`
 
-   Legacy / fallback chat routing (optional):
-   - `CHAT_FALLBACK_MODE` (default: `sessions_spawn`) – fallback strategy when `sessions_send` / `sessions_history` are not available (404/405). Options: `sessions_spawn` | `tool_invoke`.
-   - `CHAT_TOOL_NAMESPACE` / `CHAT_TOOL_ACTION` – used when `CHAT_FALLBACK_MODE=tool_invoke`, or as a secondary fallback if `sessions_spawn` returns no assistant text.
+Optional (Console send requirements):
 
-   - (optional) `OPENCLAW_MEMORY_DIR` (only relevant if you deploy with memory files available)
-4. Deploy.
+- `DEFAULT_MESSAGE_TARGET` (or `OWNER_TARGET`)
+- `DEFAULT_MESSAGE_CHANNEL` (default: `discord`)
 
-### Vercel runtime notes (persistence)
+Optional relay fallback (best-effort delivery when direct send is blocked):
 
-Vercel Serverless/Edge runtimes often have an **ephemeral and/or read-only filesystem**.
+- `RELAY_SESSION_KEY` (default: `agent:main:main`)
+- `RELAY_TOOL_NAMESPACE` / `RELAY_TOOL_ACTION` (fallback tool path)
 
-JayClaw’s local persistence (chat thread + audit trail) is therefore **best-effort**:
+### Runtime notes (persistence)
+
+Serverless runtimes often have an **ephemeral and/or read-only filesystem**.
+
+JayClaw’s local persistence (audit + diagnostics cache) is therefore **best-effort**:
 
 - By default it tries to write under `./.jayclaw-data/`.
-- If writes fail (e.g. `EROFS`), it automatically **falls back to in-memory storage** and API routes return **graceful empty states** (no hard 500s).
+- If writes fail (e.g. `EROFS`), it automatically **falls back to in-memory storage**.
 
 You can control this with:
 
-- `JAYCLAW_DATA_DIR` – path to a writable directory (if your runtime provides one)
+- `JAYCLAW_DATA_DIR` – path to a writable directory
 - `JAYCLAW_AUDIT_PATH` – override the audit JSONL file path
-- `JAYCLAW_PERSISTENCE=memory` – force in-memory mode (useful for strict serverless)
+- `JAYCLAW_DIAGNOSTICS_PATH` – override the diagnostics JSON path
+- `JAYCLAW_PERSISTENCE=memory` – force in-memory mode
 
-If you need durable history on Vercel, wire these stores to a DB/kv (Upstash/Redis, Postgres, etc.).
-
-### Known gateway limitations + graceful behavior
+## Known gateway limitations + graceful behavior
 
 OpenClaw Gateway deployments can vary by **base path**, **available tools**, and **tool invocation schema**.
 
-JayClaw is designed to **degrade gracefully** (no blank pages / hard UI crashes):
+JayClaw is designed to **degrade gracefully**:
 
 - Tool invocation is centralized in **one place**: `src/lib/openclaw.ts`.
-- If tool invocation fails with `404` / `405` / schema mismatches, API routes return **actionable errors** and pages show **warnings** + safe empty states.
+- If tool invocation fails with `404` / `405` / schema mismatches, API routes return **actionable errors**.
 - JayClaw retries common tool invoke endpoints: `/tools/invoke`, `/api/tools/invoke`, `/tool/invoke`.
 
 Quick verification endpoints:
 
-- `GET /api/ops/status` (gateway `session_status` probe)
-- `GET /api/chat/diag` (read-only chat probes)
-- `GET /api/diag/summary` (aggregated gateway/chat/memory/console readiness)
-
-If you still see `gateway_method_not_allowed` or `gateway_not_found`, verify:
-
-- `OPENCLAW_GATEWAY_URL` points at the **HTTP(S) API root** (not `ws://` / `wss://`).
-- Your gateway build exposes the tools you’re calling (some deployments omit `sessions_*` / `memory`).
-
-### Notes
-
-- The Gateway API shape can differ between deployments.
-  - Update **one place**: `src/lib/openclaw.ts` (`gatewayFetch()` / `invokeTool()`).
-- Scheduler is an MVP and stores reminders in memory (resets on server restart / redeploy).
-  - For production, wire this to your Gateway scheduler or persistent storage.
-
-## PERF_NOTES
-
-Recent runtime smoothness pass focused on reducing expensive UI work without changing the overall “glass + flagship” look:
-
-- **Command palette**
-  - Close on **backdrop click**, **Esc**, and a visible **×** button.
-  - Debounced query filtering (120ms) and removed an `O(n²)` render hot-path (`findIndex` in the list).
-  - Hard cap of **80 visible results** to prevent pathological lists from tanking FPS.
-  - Adds/removes a `jc-modal-open` root class while open to pause background animation.
-
-- **Backdrop/blur cost controls**
-  - While a modal is open: pauses the vortex animation and reduces its blur/opacity.
-  - Optional global low-power mode: set `NEXT_PUBLIC_JC_PERF_MODE=1` to disable most backdrop blurs + animation (helpful for remote sessions / weak GPUs).
+- `GET /api/ops/status` (gateway `session_status`)
+- `GET /api/ops/diag` (URL reachability + auth check)
+- `GET /api/diagnostics` (capability matrix)
 
 ## Scripts
 

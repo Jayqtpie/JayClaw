@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, EmptyState, Skeleton, StatusChip, TextArea, TextInput } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useDiagnostics } from '@/components/useDiagnostics';
 
 type Reminder = {
   id: string;
@@ -24,6 +25,8 @@ function formatDate(ts: number) {
 
 export default function SchedulerPage() {
   const { enabled: safeMode } = useSafeMode();
+  const diag = useDiagnostics();
+  const canRun = diag.pass('scheduler.run');
 
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [busy, setBusy] = useState(false);
@@ -134,7 +137,14 @@ export default function SchedulerPage() {
         }
       >
         {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; create/toggle/run are blocked server-side." /> : null}
-        {error ? <Alert variant="error" title="Scheduler error" message={error} /> : <Alert variant="info" message="Run now triggers a gateway message. Cron is stored as a string in MVP." />}
+        {!canRun ? (
+          <Alert
+            variant="info"
+            title="Run now unavailable"
+            message="This gateway mode does not expose a verified, safe message-send path for scheduler execution. Create/toggle/list still work locally."
+          />
+        ) : null}
+        {error ? <Alert variant="error" title="Scheduler error" message={error} /> : <Alert variant="info" message="Cron is stored as a string in MVP." />}
       </Card>
 
       <Card title="Create reminder" subtitle="Keep it short, explicit, and action-oriented.">
@@ -201,7 +211,7 @@ export default function SchedulerPage() {
                     <Button variant="outline" onClick={() => toggle(r.id, !r.enabled)} disabled={busy || safeMode}>
                       {r.enabled ? 'Disable' : 'Enable'}
                     </Button>
-                    <Button onClick={() => setRunId(r.id)} disabled={busy || safeMode || !r.enabled}>
+                    <Button onClick={() => setRunId(r.id)} disabled={busy || safeMode || !canRun || !r.enabled}>
                       Run now
                     </Button>
                   </div>

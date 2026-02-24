@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { invokeTool } from '@/lib/openclaw';
 import { requireNotSafeMode } from '@/lib/safeMode';
 import { appendAudit } from '@/lib/audit';
-import { relayToAssistant } from '@/lib/chatRelay';
+import { relayToAssistant } from '@/lib/relay';
 
 type AttemptLog = {
   path:
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
         details: {
           hint:
             'Direct message tool failed and relay fallback also failed. ' +
-            'Check gateway tool exposure/permissions and CHAT_* env configuration.',
+            'Check gateway tool exposure/permissions and RELAY_* env configuration (if using relay fallback).',
         },
       });
       throw err;

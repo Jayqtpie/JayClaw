@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Card, EmptyState, Skeleton, StatusChip } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+// (restart dialog removed)
 import { RawJsonPanel } from '@/components/RawJsonPanel';
 
 export default function OpsPage() {
@@ -12,7 +12,7 @@ export default function OpsPage() {
   const [status, setStatus] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [restartOpen, setRestartOpen] = useState(false);
+  // restart is unavailable in current public gateway mode
 
   const runtime = useMemo(() => {
     const r = status?.runtime;
@@ -45,21 +45,7 @@ export default function OpsPage() {
     }
   }
 
-  async function restart() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/ops/restart', { method: 'POST' });
-      const j = (await res.json().catch(() => null)) as any;
-      if (!res.ok) throw new Error(j?.message || j?.error || 'Restart failed');
-      await load();
-    } catch (e: any) {
-      setError(e?.message || 'Restart failed');
-    } finally {
-      setBusy(false);
-      setRestartOpen(false);
-    }
-  }
+  // Restart is unavailable in current public gateway mode.
 
   useEffect(() => {
     void load();
@@ -87,13 +73,18 @@ export default function OpsPage() {
             <Button variant="outline" onClick={load} disabled={busy}>
               Refresh
             </Button>
-            <Button variant="danger" onClick={() => setRestartOpen(true)} disabled={busy || safeMode}>
-              Restart
+            <Button variant="danger" disabled>
+              Restart (Unavailable)
             </Button>
           </div>
         }
       >
         {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; restart is blocked server-side." /> : null}
+        <Alert
+          variant="info"
+          title="Restart unavailable"
+          message="This public gateway deployment does not expose a restart endpoint. Use server CLI: openclaw gateway restart"
+        />
         {error ? (
           <Alert variant="error" title="Ops status unavailable" message={error} right={<Button variant="outline" onClick={load}>Retry</Button>} />
         ) : status ? (
@@ -120,15 +111,7 @@ export default function OpsPage() {
         )}
       </Card>
 
-      <ConfirmDialog
-        open={restartOpen}
-        title="Restart OpenClaw Gateway?"
-        description="High-impact operation. This may interrupt in-flight tasks. Some deployments may return 501."
-        confirmText={busy ? 'Restarting…' : 'Restart'}
-        danger
-        onClose={() => setRestartOpen(false)}
-        onConfirm={restart}
-      />
+      {/* Restart UI removed: unavailable in current public gateway mode */}
     </div>
   );
 }

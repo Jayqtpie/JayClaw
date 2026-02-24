@@ -4,9 +4,12 @@ import { useMemo, useState } from 'react';
 import { Alert, Button, Card, EmptyState, StatusChip, TextArea } from '@/components/ui';
 import { useSafeMode } from '@/components/SafeModeClient';
 import { RawJsonPanel } from '@/components/RawJsonPanel';
+import { useDiagnostics } from '@/components/useDiagnostics';
 
 export default function ConsolePage() {
   const { enabled: safeMode } = useSafeMode();
+  const diag = useDiagnostics();
+  const envTargetOk = diag.pass('console.env_target');
 
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -14,7 +17,7 @@ export default function ConsolePage() {
   const [error, setError] = useState<string | null>(null);
   const [showDiagnostic, setShowDiagnostic] = useState(false);
 
-  const canSend = useMemo(() => message.trim().length > 0 && !busy && !safeMode, [message, busy, safeMode]);
+  const canSend = useMemo(() => message.trim().length > 0 && !busy && !safeMode && envTargetOk, [message, busy, safeMode, envTargetOk]);
 
   async function send() {
     const text = message.trim();
@@ -58,6 +61,13 @@ export default function ConsolePage() {
         right={<StatusChip tone={busy ? 'warn' : safeMode ? 'warn' : 'info'}>{busy ? 'Sending…' : safeMode ? 'Safe Mode' : 'Ready'}</StatusChip>}
       >
         {safeMode ? <Alert variant="warning" title="Safe Mode" message="Read-only mode is enabled; sending is blocked server-side." /> : null}
+        {!envTargetOk ? (
+          <Alert
+            variant="info"
+            title="Unavailable in current gateway mode"
+            message="Console send requires DEFAULT_MESSAGE_TARGET (or OWNER_TARGET) in env. Set it and re-run Diagnostics probes."
+          />
+        ) : null}
         <div className="space-y-3">
           <TextArea
             value={message}

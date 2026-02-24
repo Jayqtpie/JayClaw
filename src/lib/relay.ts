@@ -72,15 +72,18 @@ export type RelayResult = {
 
 /**
  * Best-effort message delivery to the main assistant session when direct tools are blocked.
- * This does NOT require a reply stream.
+ *
+ * NOTE: This is not the dashboard Chat module. It is only used as a fallback transport.
  */
 export async function relayToAssistant(message: string): Promise<RelayResult> {
   const attempts: AttemptLog[] = [];
 
-  const configuredNamespace = process.env.CHAT_TOOL_NAMESPACE || 'subagents';
-  const configuredAction = process.env.CHAT_TOOL_ACTION || 'steer';
+  // Primary config (new names)
+  const configuredNamespace = (process.env.RELAY_TOOL_NAMESPACE || 'subagents').trim();
+  const configuredAction = (process.env.RELAY_TOOL_ACTION || 'steer').trim();
 
-  const sessionKeyEnv = (process.env.CHAT_SESSION_KEY || '').trim();
+  // Session routing
+  const sessionKeyEnv = (process.env.RELAY_SESSION_KEY || '').trim();
   const sessionKey = sessionKeyEnv || 'agent:main:main';
 
   // 1) Try sessions_send(sessionKey)
@@ -103,7 +106,7 @@ export async function relayToAssistant(message: string): Promise<RelayResult> {
     if (isFatalGatewayErr(e)) return { ok: false, pipeline: 'sessions_spawn', attempted: attempts, error: errSummary(e) };
   }
 
-  // 3) Configured tool invoke fallback (may or may not return transcript; we only care about delivery)
+  // 3) Configured tool invoke fallback
   try {
     const result = await invokeTool<any>({
       namespace: configuredNamespace,

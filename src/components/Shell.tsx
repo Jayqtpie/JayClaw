@@ -27,7 +27,7 @@ import { SafeModeProvider } from '@/components/SafeModeClient';
 import { LowPowerModeProvider } from '@/components/LowPowerModeClient';
 import TopSafetyControls from '@/components/TopSafetyControls';
 
-function Icon({ name }: { name: 'chat' | 'console' | 'agents' | 'ops' | 'sched' | 'mem' | 'spark' | 'search' | 'health' | 'audit' | 'quick' }) {
+function Icon({ name }: { name: 'console' | 'agents' | 'ops' | 'sched' | 'mem' | 'spark' | 'search' | 'health' | 'audit' | 'quick' }) {
   // Tiny inline SVGs to keep deps minimal
   if (name === 'search')
     return (
@@ -111,23 +111,7 @@ function Icon({ name }: { name: 'chat' | 'console' | 'agents' | 'ops' | 'sched' 
       </svg>
     );
 
-  if (name === 'chat')
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M5 6.5A4.5 4.5 0 0 1 9.5 2h5A4.5 4.5 0 0 1 19 6.5V12a4.5 4.5 0 0 1-4.5 4.5H11l-4.3 3a.75.75 0 0 1-1.2-.61V16.5A4.5 4.5 0 0 1 5 12V6.5Z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M8 7.75h8M8 11h6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
+  // (chat icon removed)
   if (name === 'console')
     return (
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -210,7 +194,7 @@ export default function Shell({ children }: { children: ReactNode }) {
 
   const paletteItems: CommandItem[] = useMemo(
     () => [
-      { id: 'nav-chat', label: 'Chat', hint: 'Native dashboard chat (assistant replies)', group: 'Navigate', href: '/chat', keywords: ['assistant', 'talk'] },
+      { id: 'nav-diagnostics', label: 'Diagnostics', hint: 'Capability probes (PASS/FAIL) for this gateway', group: 'Navigate', href: '/diagnostics', keywords: ['caps', 'capabilities', 'probe'] },
       { id: 'nav-console', label: 'Console', hint: 'Message routing / outbound sends', group: 'Navigate', href: '/console', keywords: ['message', 'send'] },
       { id: 'nav-subagents', label: 'Subagents', hint: 'List / spawn / steer', group: 'Navigate', href: '/subagents', keywords: ['agents', 'spawn'] },
       { id: 'nav-ops', label: 'Ops', hint: 'Status + restart + diagnostics', group: 'Navigate', href: '/ops', keywords: ['status', 'restart'] },
@@ -389,7 +373,7 @@ export default function Shell({ children }: { children: ReactNode }) {
               <div className="jc-dock__section">
                 <div className="jc-dock__label">LIVE</div>
                 <div className="jc-dock__grid">
-                  <RailItem href="/chat" label="Chat" icon={<Icon name="chat" />} />
+                  <RailItem href="/diagnostics" label="Diagnostics" icon={<Icon name="health" />} />
                   <RailItem href="/console" label="Console" icon={<Icon name="console" />} />
                 </div>
               </div>
@@ -443,7 +427,7 @@ export default function Shell({ children }: { children: ReactNode }) {
 
           {/* Mobile bottom nav */}
           <nav className="jc-bottom" aria-label="Bottom navigation">
-            <RailItem href="/chat" label="Chat" icon={<Icon name="chat" />} />
+            <RailItem href="/diagnostics" label="Diag" icon={<Icon name="health" />} />
             <RailItem href="/console" label="Console" icon={<Icon name="console" />} />
             <RailItem href="/subagents" label="Subagents" icon={<Icon name="agents" />} />
             <RailItem href="/ops" label="Ops" icon={<Icon name="ops" />} />

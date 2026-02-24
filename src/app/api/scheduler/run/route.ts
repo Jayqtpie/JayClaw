@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getReminder } from '@/lib/reminders';
-import { invokeTool } from '@/lib/openclaw';
+// invokeTool removed (scheduler.run unavailable in current gateway mode)
 import { requireNotSafeMode } from '@/lib/safeMode';
 import { appendAudit } from '@/lib/audit';
 
@@ -16,23 +16,25 @@ export async function POST(req: Request) {
   try {
     await requireNotSafeMode();
 
-    // Run = send a message through the gateway.
-    const result = await invokeTool<any>({
-      namespace: 'message',
-      action: 'send',
-      params: {
-        message: `[Reminder] ${reminder.title}\n\n${reminder.message}`,
-      },
-    });
-
+    // NOTE: The public gateway mode in this environment does not expose a verified, safe
+    // message-send path for scheduler execution.
+    // Keep this explicit to avoid fake success states.
     await appendAudit({
       action: 'scheduler.run',
       summary: reminder.title,
       payload: { id },
-      result: { ok: true, status: 200 },
+      result: { ok: false, status: 501, error: 'unavailable_in_current_gateway_mode' },
     });
 
-    return NextResponse.json({ ok: true, reminder, result });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'unavailable_in_current_gateway_mode',
+        message:
+          'Scheduler run is unavailable in the current gateway mode (requires a verified message-send capability).',
+      },
+      { status: 501 }
+    );
   } catch (e: any) {
     await appendAudit({
       action: 'scheduler.run',

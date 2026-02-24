@@ -20,14 +20,15 @@ export async function GET() {
     hasGatewayToken: Boolean(process.env.OPENCLAW_GATEWAY_TOKEN),
     hasDefaultMessageTarget: Boolean((process.env.DEFAULT_MESSAGE_TARGET || process.env.OWNER_TARGET || '').trim()),
     defaultMessageChannel: (process.env.DEFAULT_MESSAGE_CHANNEL || 'discord').trim(),
-    chatSessionKeySet: Boolean((process.env.CHAT_SESSION_KEY || '').trim()),
-    chatSessionLabelSet: Boolean((process.env.CHAT_SESSION_LABEL || '').trim()),
+    relaySessionKeySet: Boolean((process.env.RELAY_SESSION_KEY || '').trim()),
+    relaySessionLabelSet: Boolean((process.env.RELAY_SESSION_LABEL || '').trim()),
   };
 
   const checks: any = {
     safeModeEnabled,
     gateway: { ok: false, probed: false, probe: null as any },
-    chat: { ok: false, probed: false, probes: [] as any[] },
+    // (chat removed)
+
     memory: { ok: false, probed: false, mode: 'unknown' as 'unknown' | 'local' | 'gateway', probes: [] as any[] },
     console: {
       ok: false,
@@ -55,34 +56,7 @@ export async function GET() {
     }
   }
 
-  // Chat probe (read-only): sessions_history
-  if (env.hasGatewayUrl && env.hasGatewayToken && !safeModeEnabled) {
-    const sessionKeyEnv = (process.env.CHAT_SESSION_KEY || '').trim();
-    const sessionKey = sessionKeyEnv || 'agent:main:main';
-
-    const sessionLabelEnv = (process.env.CHAT_SESSION_LABEL || '').trim();
-    const sessionLabel = sessionLabelEnv || (sessionKeyEnv ? '' : sessionKey);
-
-    try {
-      await invokeTool<any>({ namespace: 'sessions_history', params: { sessionKey, limit: 1 } });
-      checks.chat.probes.push({ kind: 'sessions_history(sessionKey)', ok: true });
-      checks.chat.ok = true;
-      checks.chat.probed = true;
-    } catch (e: any) {
-      checks.chat.probes.push({ kind: 'sessions_history(sessionKey)', ok: false, ...errSummary(e) });
-      checks.chat.probed = true;
-    }
-
-    if (!checks.chat.ok && sessionLabel) {
-      try {
-        await invokeTool<any>({ namespace: 'sessions_history', params: { label: sessionLabel, limit: 1 } });
-        checks.chat.probes.push({ kind: 'sessions_history(label)', ok: true });
-        checks.chat.ok = true;
-      } catch (e: any) {
-        checks.chat.probes.push({ kind: 'sessions_history(label)', ok: false, ...errSummary(e) });
-      }
-    }
-  }
+  // (chat module removed)
 
   // Memory readiness:
   // - Prefer local filesystem if configured
@@ -140,7 +114,7 @@ export async function GET() {
     hints: [
       'If gateway probes show 404/405, your gateway deployment may be on a different path. JayClaw retries /tools/invoke, /api/tools/invoke, /tool/invoke.',
       'If gateway probes show 401/403, verify OPENCLAW_GATEWAY_TOKEN and gateway auth headers.',
-      'If chat probes fail with 404, your gateway may not expose sessions_* tools; configure CHAT_TOOL_NAMESPACE/CHAT_TOOL_ACTION as a fallback for /api/chat/send.',
+      'Some deployments do not expose sessions_* tools. JayClaw can optionally relay via RELAY_TOOL_NAMESPACE/RELAY_TOOL_ACTION for best-effort delivery (no reply stream).',
       'Console requires DEFAULT_MESSAGE_TARGET (or OWNER_TARGET). JayClaw will not send a test message from diagnostics.',
     ],
   });

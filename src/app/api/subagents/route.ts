@@ -27,24 +27,22 @@ export async function POST(req: Request) {
   try {
     await requireNotSafeMode();
 
-    const result = await invokeTool<any>({
-      namespace: 'subagents',
-      action: 'steer',
-      params: {
-        // For spawning, your gateway may expose a dedicated action.
-        // This MVP uses 'steer' as a placeholder. Update as needed.
-        message,
-      },
-    });
-
+    // Not exposed/verified in current gateway mode.
     await appendAudit({
       action: 'subagents.steer',
-      summary: message.length > 180 ? message.slice(0, 180) + '…' : message,
+      summary: 'unavailable_in_current_gateway_mode',
       payload: { messageLen: message.length },
-      result: { ok: true, status: 200 },
+      result: { ok: false, status: 501, error: 'unavailable_in_current_gateway_mode' },
     });
 
-    return NextResponse.json({ ok: true, result });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'unavailable_in_current_gateway_mode',
+        message: 'Spawning/steering subagents is unavailable in the current public gateway mode.',
+      },
+      { status: 501 }
+    );
   } catch (e: any) {
     await appendAudit({
       action: 'subagents.steer',
